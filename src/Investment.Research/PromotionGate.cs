@@ -90,6 +90,13 @@ public static class PromotionGate
     {
         if (current is StrategyStatus.Rejected or StrategyStatus.Disabled)
             return new(GateDecision.Hold, current, [$"status {current} is terminal for this version; create a new version"]);
+        if (current is StrategyStatus.Paper or StrategyStatus.Approved)
+        {
+            // forward evidence outranks backtests: only the paper gate may move a version in the forward stage
+            var would = EvaluateValidation(StrategyStatus.Backtested, e, c);
+            return new(GateDecision.Hold, current,
+                [$"version is in {current}; backtest evidence is recorded but does not change its status (would be {would.Decision}: {string.Join("; ", would.Reasons)})"]);
+        }
 
         var reject = new List<string>();
         if (e.Trades > 0 && e.NetEvPerTrade <= 0) reject.Add($"OOS net EV/trade {e.NetEvPerTrade:P3} <= 0");

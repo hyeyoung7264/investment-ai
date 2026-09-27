@@ -64,6 +64,15 @@ public sealed class ResearchTests
     public void Strategy_status_is_its_most_advanced_active_version(StrategyStatus[] versions, StrategyStatus expected) =>
         Assert.Equal(expected, StrategyStatusRules.Rollup(versions));
 
+    [Theory]
+    [InlineData(StrategyStatus.Paper)]
+    [InlineData(StrategyStatus.Approved)]
+    public void Backtest_studies_never_move_versions_in_the_forward_stage(StrategyStatus current)
+    {
+        Assert.Equal(current, PromotionGate.EvaluateValidation(current, Good, new GateCriteria()).To);
+        Assert.Equal(current, PromotionGate.EvaluateValidation(current, Good with { NetEvPerTrade = -0.01 }, new GateCriteria()).To);
+    }
+
     [Fact]
     public void Rejected_versions_are_never_resurrected()
     {
