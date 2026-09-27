@@ -63,3 +63,6 @@ Events use the receipt date (no time) → decision after the close, **entry at t
 | H14 | event.buyback (buyback decision filed ≤3 days ago, hold 20 days), universe top 100 | Positive drift after buyback announcement | a-priori (literature) | event family variant 1 |
 | H15 | Same, universe top 300 | Smaller caps have stronger buyback signal / more events | a-priori | family variant 2 |
 | H16 | composite.event-filter(meanrev v4 params, block rights offering/CB/BW within 30 days) | Sharp drops caused by dilution news are information, not overreaction | a-priori idea, but **base parameters were chosen on OOS → post-hoc** | Gate capped at HOLD |
+
+### M6 results (2026-09-27)
+H14 HOLD (47 trades, EV +2.12%, t=0.66) · H15 HOLD (163 trades, EV +1.80%, t=1.24 < 1.96, 4/5 traded folds positive, 0.021%/day) · H16 HOLD by post-hoc cap (EV +1.10%, t=3.05, 0.038%/day; slightly better than fixed-parameter H6 1.03%).

@@ -38,3 +38,18 @@ Further re-testing on the same daily-bar data risks becoming data mining. What c
 2. **New information sources**: OpenDART disclosures (earnings, buybacks, contracts: event-driven), KRX investor-type flows (foreign/institutional net buying). Needs API keys.
 3. **Intraday data**: the open→close rebound failed on daily bars, but minute data would allow testing open-auction/intraday behavior (needs a paid data source).
 4. **Strategies that start with fresh data**: judge newly generated hypotheses by paper trading from here on rather than by past data.
+
+## M6 — OpenDART disclosure events (2026-09-27)
+
+- 10 years of type B (major events) disclosures collected: 75,155 filings (buybacks 1,936, rights offerings 5,918, CB 5,415, …). Receipt date only → entry at the next session's open.
+- Strategies see only events dated up to the as-of date (test-verified); existing strategies reproduce with identical data hashes.
+
+| ID | Idea | Trades | EV/trade | t (threshold) | Daily avg | Verdict |
+|---|---|---|---|---|---|---|
+| H14 | Buyback announcement drift, top 100 | 47 | +2.12% | 0.66 (1.64) | 0.007% | HOLD |
+| H15 | Buyback announcement drift, top 300 | 163 | +1.80% | 1.24 (1.96) | 0.021% | HOLD |
+| H16 | H6 + exclude names with dilutive financing in 30 days | 529 | +1.10% | 3.05 (2.24) | 0.038% | HOLD (post-hoc) |
+
+Interpretation: disclosure events give **large per-trade edges but few events**, so their contribution to daily return is small. The overall best remains 0.049%/day (H13).
+
+Next candidates: (1) earnings surprise (PEAD) — DART multi-company key accounts API (`fnlttMultiAcnt`, 100 companies per call) to compute YoY operating income surprise, event date = filing date; (2) type I exchange disclosures (supply contracts, preliminary earnings) — ingest takes about 2–3 hours; (3) a shared-capital combination of buybacks and H16.
