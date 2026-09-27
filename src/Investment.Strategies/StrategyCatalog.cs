@@ -21,6 +21,7 @@ public static class StrategyCatalog
         [RandomEntryStrategy.Id] = json => new RandomEntryStrategy(Parse<RandomEntryParameters>(json)),
         [ShortTermReversalStrategy.Id] = json => new ShortTermReversalStrategy(Parse<ShortTermReversalParameters>(json)),
         [IntradayReboundStrategy.Id] = json => new IntradayReboundStrategy(Parse<IntradayReboundParameters>(json)),
+        [CapitulationStrategy.Id] = json => new CapitulationStrategy(Parse<CapitulationParameters>(json)),
         [VolumeBreakoutStrategy.Id] = json => new VolumeBreakoutStrategy(Parse<VolumeBreakoutParameters>(json)),
         [RegimeFilterStrategy.Id] = json => new RegimeFilterStrategy(Parse<RegimeFilterParameters>(json)),
     };

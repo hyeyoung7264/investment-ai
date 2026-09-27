@@ -31,3 +31,14 @@ Starting from this round, multiple testing counts **every walk-forward study in 
 | H7 | meanrev.intraday (z20 ≤ -2.5, next open→same-day close) | Most of the rebound after an extreme sell-off happens the next day. Daily capital recycling raises daily return | Derived from H6 (same data: weak evidence) | Round-trip cost per trade is the same, so it likely fails if the per-trade edge shrinks |
 | H8 | breakout.volume (20-day high + volume ≥3x + bullish candle, 5 days/SMA10) | Information-driven buying continues | a-priori (spec Breakout/Volume group) | Korean theme-stock chasing tends to reverse, so negative is possible |
 | H9 | meanrev.zscore v4 params, MaxPositions 20 (weight 10%) | More capital deployed when signals cluster on panic days raises daily return | Capacity analysis (M1 max-positions rejections) | Higher return, but MDD also rises |
+
+### Round 1 results (2026-09-27)
+H7 REJECTED (gross +0.33%, net -0.09%: the rebound is not first-day-only) · H8 HOLD (net +0.63%, t=0.88) · H9 net +0.96% (t=2.98) but daily average 0.020% is **below** H6 (0.040%), no improvement. H9 exposed a bug where a backtest study demoted a Paper version (fixed and corrected).
+
+## M5 round 2 (recorded 2026-09-27, before running)
+
+| ID | Strategy / conditions | Hypothesis | Origin | Expected |
+|---|---|---|---|---|
+| H10 | meanrev.capitulation (z20 ≤ -2 + volume ≥2x) | A heavy-volume sharp drop (forced selling) reverts more reliably. Captures more signals at the z -2 level at quality comparable to H6 | a-priori (forced-selling/liquidity-provision literature), meanrev family | Positive EV likely, but family variants are high (t threshold ~2.4) |
+| H11 | breakout.volume grid: {60-day high, volume 5x} / {20-day, 5x} | Only stronger information shocks (volume 5x) continue | Refinement of H8 (a-priori grid, 2 variants) | Fewer trades |
+| H12 | H6 + H8 50/50 combined OOS track record (analysis) | Combining low-correlation strategies improves Sharpe and utilization | Analysis (no status change) | — |
