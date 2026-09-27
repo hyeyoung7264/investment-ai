@@ -30,7 +30,7 @@ public static class StudyCommands
             universe = universe with { Markets = m.Split(',').Select(x => Enum.Parse<MarketType>(x, true)).ToList() };
         var runner = new BacktestRunner(cs, Log);
         var outcome = await new WalkForwardRunner(runner, Log).RunAsync(strategyId, o.Require("hypothesis"), plan, universe,
-            (s, e) => ResearchCommands.Config(o, s, e), new GateCriteria(), ct);
+            (s, e) => ResearchCommands.Config(o, s, e), new GateCriteria(), ct, diagnostic: o.Has("diagnostic"));
 
         var e2 = outcome.Evidence;
         Console.WriteLine($"""
@@ -45,6 +45,55 @@ public static class StudyCommands
                GATE: {outcome.Gate.Decision} -> {outcome.Gate.To}
                  {string.Join("\n     ", outcome.Gate.Reasons)}
             """);
+        return 0;
+    }
+
+    /// <summary>
+    /// Overfitting diagnostics for one parameter set: parameter neighborhood, cost stress and universe size.
+    /// Each variation is a separate diagnostic walk-forward (no status changes). A real edge should survive
+    /// most neighbors; an edge that exists only at the chosen point is likely fitted noise.
+    /// </summary>
+    public static async Task<int> RobustnessAsync(CliOptions o, CancellationToken ct)
+    {
+        var cs = Database.ConnectionString(o.Get("db"));
+        var strategyId = o.Require("strategy");
+        var baseParams = System.Text.Json.Nodes.JsonNode.Parse(o.Require("params"))!.AsObject();
+        var neighbors = o.Get("neighbors") is { } n
+            ? JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(n)!
+            : [];
+        var runner = new BacktestRunner(cs, _ => { });
+        var wf = new WalkForwardRunner(runner, _ => { });
+        var plan = new WalkForwardPlan { FirstTrainStart = o.GetDate("from", new DateOnly(2017, 1, 1)), LastDate = o.GetDate("to", DateOnly.FromDateTime(DateTime.Today)) };
+        var baseUniverse = ResearchCommands.Universe(o);
+
+        var cases = new List<(string Name, string Params, Investment.MarketData.Universe.UniverseDefinition Universe, double SlippageMultiplier)>
+        {
+            ("base", baseParams.ToJsonString(), baseUniverse, 1),
+        };
+        foreach (var change in neighbors)
+        {
+            var p = baseParams.DeepClone().AsObject();
+            foreach (var (k, v) in change) p[k] = System.Text.Json.Nodes.JsonNode.Parse(v.GetRawText());
+            cases.Add(($"params {JsonSerializer.Serialize(change)}", p.ToJsonString(), baseUniverse, 1));
+        }
+        foreach (var m in (o.Get("cost-stress") ?? "2").Split(',').Select(x => double.Parse(x, System.Globalization.CultureInfo.InvariantCulture)))
+            cases.Add(($"slippage x{m}", baseParams.ToJsonString(), baseUniverse, m));
+        foreach (var top in (o.Get("universe-sizes") ?? "50,200").Split(',').Select(int.Parse))
+            cases.Add(($"universe top {top}", baseParams.ToJsonString(), baseUniverse with { TopN = top }, 1));
+
+        Console.WriteLine($"{"case",-44} {"trades",6} {"EV/trade",9} {"t",6} {"Sharpe",6} {"MDD",7} {"total",8} {"folds+",6} gate");
+        foreach (var c in cases)
+        {
+            BacktestConfig Cfg(DateOnly s, DateOnly e)
+            {
+                var cfg = ResearchCommands.Config(o, s, e);
+                return cfg with { Costs = cfg.Costs with { BaseSlippage = cfg.Costs.BaseSlippage * c.SlippageMultiplier } };
+            }
+            var outcome = await wf.RunAsync(strategyId, $"robustness of {baseParams.ToJsonString()}: {c.Name}", plan with { ParameterGrid = [c.Params] },
+                c.Universe, Cfg, new GateCriteria(), ct, diagnostic: true);
+            var e = outcome.Evidence;
+            Console.WriteLine($"{c.Name,-44} {e.Trades,6} {ReportFormatter.P(e.NetEvPerTrade, 3),9} {e.NetEvTStat,6:F2} {e.NetSharpe,6:F2} {ReportFormatter.P(e.NetMaxDrawdown),7} {ReportFormatter.P(e.NetTotalReturn),8} {e.FoldsPositive,3}/{e.Folds,-2} {outcome.Gate.Decision}");
+        }
         return 0;
     }
 

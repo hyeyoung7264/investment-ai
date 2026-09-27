@@ -39,6 +39,8 @@ public static class CliApp
                     return await ResearchCommands.ListRunsAsync(opts, ct);
                 case "walkforward":
                     return await StudyCommands.WalkForwardAsync(opts, ct);
+                case "robustness":
+                    return await StudyCommands.RobustnessAsync(opts, ct);
                 case "regime":
                     return await StudyCommands.RegimeAsync(opts, ct);
                 case "evaluations":
@@ -79,6 +81,8 @@ public static class CliApp
               walkforward --strategy <id> --hypothesis "text" [--params json | --grid '[json,...]']
                        [--from 2017-01-01] [--to today] [--train 3] [--validation 1] [--oos 1] [--markets Kospi]
                        + backtest options          rolling train/validation/OOS study, then Promotion Gate
+              robustness --strategy <id> --params json [--neighbors '[{"EntryZ":-3},...]'] [--cost-stress 2]
+                       [--universe-sizes 50,200]   diagnostic walk-forwards around one parameter set (no status changes)
               regime [--index KOSPI]        classify and store daily market regimes
               evaluations [--limit 30]      gate decisions and current strategy statuses
               failures                      rejected experiments (never deleted)

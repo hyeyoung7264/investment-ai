@@ -50,13 +50,17 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
 {
     private readonly Action<string> _log = log ?? (_ => { });
 
+    /// <param name="diagnostic">
+    /// Robustness diagnostics (parameter neighborhoods, cost stress): the gate is evaluated and stored, but
+    /// strategy statuses never change — a sweep of neighbors must not promote anything (multiple testing).
+    /// </param>
     public async Task<StudyOutcome> RunAsync(string strategyId, string hypothesis, WalkForwardPlan plan, UniverseDefinition universe,
-        Func<DateOnly, DateOnly, BacktestConfig> config, GateCriteria criteria, CancellationToken ct = default)
+        Func<DateOnly, DateOnly, BacktestConfig> config, GateCriteria criteria, CancellationToken ct = default, bool diagnostic = false)
     {
         var code = CodeVersion.Detect();
         var study = new ResearchStudy
         {
-            Id = Guid.NewGuid(), StrategyId = strategyId, Kind = "walk-forward", Hypothesis = hypothesis,
+            Id = Guid.NewGuid(), StrategyId = strategyId, Kind = diagnostic ? "robustness" : "walk-forward", Hypothesis = hypothesis,
             PlanJson = JsonSerializer.Serialize(new { plan, universe, criteria, sample = config(plan.FirstTrainStart, plan.LastDate) }),
             VariantsTried = plan.ParameterGrid.Count, CodeCommit = code.Commit, CreatedAt = DateTimeOffset.UtcNow,
         };
@@ -95,28 +99,31 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
         await using (var db = runner.DbFactory())
             version = await db.StrategyVersions.Include(v => v.Strategy).SingleAsync(v => v.Id == lastSelectedVersion, ct);
         var gate = PromotionGate.EvaluateValidation(version.Status, evidence, criteria);
-        await RecordAsync(study, version, evidence, criteria, gate, hypothesis, plan, ct);
+        await RecordAsync(study, version, evidence, criteria, gate, hypothesis, plan, diagnostic, ct);
         return new StudyOutcome(study, folds, evidence, gate, version.Id);
     }
 
     private async Task RecordAsync(ResearchStudy study, StrategyVersion version, OosEvidence evidence, GateCriteria criteria, GateResult gate,
-        string hypothesis, WalkForwardPlan plan, CancellationToken ct)
+        string hypothesis, WalkForwardPlan plan, bool diagnostic, CancellationToken ct)
     {
         var now = DateTimeOffset.UtcNow;
         var evaluation = new StrategyEvaluation
         {
-            Id = Guid.NewGuid(), StrategyVersionId = version.Id, StudyId = study.Id, Stage = "walk-forward-oos",
-            FromStatus = version.Status, ToStatus = gate.To, Decision = gate.Decision,
+            Id = Guid.NewGuid(), StrategyVersionId = version.Id, StudyId = study.Id, Stage = diagnostic ? "robustness" : "walk-forward-oos",
+            FromStatus = version.Status, ToStatus = diagnostic ? version.Status : gate.To, Decision = gate.Decision,
             EvidenceJson = JsonSerializer.Serialize(evidence), CriteriaJson = JsonSerializer.Serialize(criteria),
             Reasons = string.Join("; ", gate.Reasons), EvaluatedAt = now,
         };
         await using var db = runner.DbFactory();
         db.StrategyEvaluations.Add(evaluation);
         var v = await db.StrategyVersions.Include(x => x.Strategy).SingleAsync(x => x.Id == version.Id, ct);
-        v.Status = gate.To;
-        v.Strategy!.Status = gate.To;
-        v.Strategy.UpdatedAt = now;
-        if (gate.Decision == GateDecision.Reject)
+        if (!diagnostic)
+        {
+            v.Status = gate.To;
+            v.Strategy!.Status = gate.To;
+            v.Strategy.UpdatedAt = now;
+        }
+        if (gate.Decision == GateDecision.Reject && !diagnostic)
         {
             var worst = evidence.ByRegime.Where(r => r.Value.Trades > 0).OrderBy(r => r.Value.NetEvPerTrade).Select(r => $"{r.Key}: EV {r.Value.NetEvPerTrade:P2} ({r.Value.Trades} trades)");
             db.ExperimentFailures.Add(new ExperimentFailure
