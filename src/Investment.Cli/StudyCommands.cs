@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Investment.Backtest;
 using Investment.Domain.Market;
 using Investment.Persistence;
 using Investment.Research;
