@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\Investment.Strategies\Investment.Strategies.csproj" />
     <ProjectReference Include="..\..\src\Investment.Cli\Investment.Cli.csproj" />
     <ProjectReference Include="..\..\src\Investment.Research\Investment.Research.csproj" />
+    <ProjectReference Include="..\..\src\Investment.PaperTrading\Investment.PaperTrading.csproj" />
   </ItemGroup>
 
 </Project>

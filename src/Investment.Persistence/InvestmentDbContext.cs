@@ -1,6 +1,7 @@
 using System.Text;
 using Investment.Domain.Market;
 using Investment.Domain.Research;
+using Investment.Domain.Trading;
 using Microsoft.EntityFrameworkCore;
 
 namespace Investment.Persistence;
@@ -22,6 +23,11 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
     public DbSet<ResearchStudy> ResearchStudies => Set<ResearchStudy>();
     public DbSet<StrategyEvaluation> StrategyEvaluations => Set<StrategyEvaluation>();
     public DbSet<ExperimentFailure> ExperimentFailures => Set<ExperimentFailure>();
+    public DbSet<PaperSession> PaperSessions => Set<PaperSession>();
+    public DbSet<PaperOrder> PaperOrders => Set<PaperOrder>();
+    public DbSet<PaperTrade> PaperTrades => Set<PaperTrade>();
+    public DbSet<PaperEquityPoint> PaperEquity => Set<PaperEquityPoint>();
+    public DbSet<PaperRunLog> PaperRuns => Set<PaperRunLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -190,6 +196,68 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
             e.Property(x => x.ResultJson).HasColumnType("jsonb");
             e.HasOne<StrategyVersion>().WithMany().HasForeignKey(x => x.StrategyVersionId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => x.StrategyId);
+        });
+
+        b.Entity<PaperSession>(e =>
+        {
+            e.ToTable("paper_sessions");
+            e.Property(x => x.Name).HasMaxLength(200);
+            e.Property(x => x.StrategyId).HasMaxLength(64);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.InitialCapital).HasPrecision(20, 2);
+            foreach (var p in new[] { nameof(PaperSession.ParametersJson), nameof(PaperSession.UniverseJson), nameof(PaperSession.CostModelJson),
+                         nameof(PaperSession.RiskLimitsJson), nameof(PaperSession.StateJson), nameof(PaperSession.BlockedRegimesJson) })
+                e.Property(p).HasColumnType("jsonb");
+            e.Property(x => x.StoppedReason).HasMaxLength(500);
+            e.HasOne<StrategyVersion>().WithMany().HasForeignKey(x => x.StrategyVersionId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<PaperOrder>(e =>
+        {
+            e.ToTable("paper_orders");
+            e.Property(x => x.Ticker).HasMaxLength(12);
+            e.Property(x => x.Side).HasMaxLength(8);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.Reason).HasMaxLength(500);
+            e.Property(x => x.MarketCondition).HasMaxLength(64);
+            e.Property(x => x.SignalPrice).HasPrecision(20, 4);
+            e.Property(x => x.FillPrice).HasPrecision(20, 4);
+            e.HasIndex(x => new { x.SessionId, x.SignalDate });
+        });
+
+        b.Entity<PaperTrade>(e =>
+        {
+            e.ToTable("paper_trades");
+            e.Property(x => x.StrategyId).HasMaxLength(64);
+            e.Property(x => x.Ticker).HasMaxLength(12);
+            e.Property(x => x.Reason).HasMaxLength(500);
+            e.Property(x => x.ExitReason).HasMaxLength(500);
+            e.Property(x => x.Result).HasMaxLength(8);
+            e.Property(x => x.MarketCondition).HasMaxLength(64);
+            foreach (var p in new[] { nameof(PaperTrade.SignalPrice), nameof(PaperTrade.EntryPrice), nameof(PaperTrade.ExitPrice), nameof(PaperTrade.StopLoss), nameof(PaperTrade.TakeProfit) })
+                e.Property(p).HasPrecision(20, 4);
+            e.Property(x => x.Costs).HasPrecision(20, 2);
+            e.Property(x => x.NetPnl).HasPrecision(20, 2);
+            e.HasIndex(x => x.SessionId);
+        });
+
+        b.Entity<PaperEquityPoint>(e =>
+        {
+            e.ToTable("paper_equity");
+            e.HasKey(x => new { x.SessionId, x.Date });
+            e.Property(x => x.NetEquity).HasPrecision(20, 2);
+            e.Property(x => x.GrossEquity).HasPrecision(20, 2);
+            e.Property(x => x.Cash).HasPrecision(20, 2);
+            e.Property(x => x.Regime).HasMaxLength(64);
+        });
+
+        b.Entity<PaperRunLog>(e =>
+        {
+            e.ToTable("paper_runs");
+            e.Property(x => x.DataHash).HasMaxLength(64);
+            e.Property(x => x.CodeCommit).HasMaxLength(64);
+            e.Property(x => x.Notes).HasMaxLength(1000);
+            e.HasIndex(x => x.SessionId);
         });
 
         ApplySnakeCase(b);

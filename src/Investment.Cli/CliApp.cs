@@ -45,6 +45,8 @@ public static class CliApp
                     return await StudyCommands.EvaluationsAsync(opts, ct);
                 case "failures":
                     return await StudyCommands.FailuresAsync(opts, ct);
+                case "paper":
+                    return await PaperCommands.RunAsync(sub, opts, ct);
                 default:
                     Console.Error.WriteLine($"unknown command: {args[0]}");
                     PrintHelp();
@@ -80,6 +82,11 @@ public static class CliApp
               regime [--index KOSPI]        classify and store daily market regimes
               evaluations [--limit 30]      gate decisions and current strategy statuses
               failures                      rejected experiments (never deleted)
+              paper start --strategy <id> [--version-id guid] [--name] [--start date] + backtest options
+                                            open a forward paper session (VALIDATED versions only, no backfill)
+              paper daily [--ingest]        (optionally refresh data, then) advance all active paper sessions
+              paper status                  equity, positions, next-open orders, recent paper trades
+            NOTE: there is no live trading and no broker connection in this system.
 
             common options: --db <connection string>  (default: INVESTMENT_DB_CONNECTION or local dev cluster)
             """);

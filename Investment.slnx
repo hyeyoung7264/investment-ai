@@ -4,6 +4,7 @@
     <Project Path="src/Investment.Cli/Investment.Cli.csproj" />
     <Project Path="src/Investment.Domain/Investment.Domain.csproj" />
     <Project Path="src/Investment.MarketData/Investment.MarketData.csproj" />
+    <Project Path="src/Investment.PaperTrading/Investment.PaperTrading.csproj" />
     <Project Path="src/Investment.Persistence/Investment.Persistence.csproj" />
     <Project Path="src/Investment.Research/Investment.Research.csproj" />
     <Project Path="src/Investment.Risk/Investment.Risk.csproj" />
