@@ -9,3 +9,4 @@ artifacts/
 .env
 appsettings.*.local.json
 reports/cache/
+reports/

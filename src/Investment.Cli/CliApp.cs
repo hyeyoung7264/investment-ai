@@ -13,7 +13,11 @@ public static class CliApp
             return 0;
         }
 
-        var opts = CliOptions.Parse(args.Skip(1));
+        using var cts = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+        var ct = cts.Token;
+        var sub = args.Length > 1 && !args[1].StartsWith("--") ? args[1] : null;
+        var opts = CliOptions.Parse(args.Skip(sub is null ? 1 : 2));
         try
         {
             switch (args[0])
@@ -23,6 +27,10 @@ public static class CliApp
                         await db.Database.MigrateAsync();
                     Console.WriteLine("database migrated");
                     return 0;
+                case "ingest":
+                    return await MarketDataCommands.IngestAsync(sub ?? "all", opts, ct);
+                case "quality":
+                    return await MarketDataCommands.QualityAsync(opts, ct);
                 default:
                     Console.Error.WriteLine($"unknown command: {args[0]}");
                     PrintHelp();
@@ -42,6 +50,10 @@ public static class CliApp
             investment-cli <command> [--option value ...]
 
               migrate                       apply EF Core migrations
+              ingest [securities|indices|prices|all] [--from 2015-01-01] [--to today] [--tickers a,b] [--concurrency 4]
+                                            collect KIND security master (incl. delisted) and Naver daily prices
+              quality [--from] [--to] [--out reports/data-quality.json]
+                                            data integrity report
 
             common options: --db <connection string>  (default: INVESTMENT_DB_CONNECTION or local dev cluster)
             """);
