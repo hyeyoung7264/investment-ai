@@ -11,6 +11,7 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
     public DbSet<DailyPrice> DailyPrices => Set<DailyPrice>();
     public DbSet<IndexPrice> IndexPrices => Set<IndexPrice>();
     public DbSet<IngestionRun> IngestionRuns => Set<IngestionRun>();
+    public DbSet<SplitEvent> SplitEvents => Set<SplitEvent>();
     public DbSet<StrategyDefinition> Strategies => Set<StrategyDefinition>();
     public DbSet<StrategyVersion> StrategyVersions => Set<StrategyVersion>();
     public DbSet<BacktestRun> BacktestRuns => Set<BacktestRun>();
@@ -51,6 +52,14 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
             e.Property(x => x.IndexCode).HasMaxLength(16);
             e.Property(x => x.Source).HasMaxLength(32);
             PriceColumns(e.Property(x => x.Open), e.Property(x => x.High), e.Property(x => x.Low), e.Property(x => x.Close));
+        });
+
+        b.Entity<SplitEvent>(e =>
+        {
+            e.ToTable("split_events");
+            e.HasKey(x => new { x.Ticker, x.EventDate });
+            e.Property(x => x.Ticker).HasMaxLength(12);
+            e.Property(x => x.Notes).HasMaxLength(500);
         });
 
         b.Entity<IngestionRun>(e =>

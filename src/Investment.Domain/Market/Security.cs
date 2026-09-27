@@ -86,3 +86,22 @@ public sealed class IngestionRun
     public required string Status { get; set; }
     public string? Notes { get; set; }
 }
+
+/// <summary>
+/// A verified share-count event (split / reverse split) found by comparing the source's adjusted prices
+/// with raw prices. When the source left pre-event volume unadjusted, <see cref="VolumeCorrection"/> is the
+/// factor that pre-event volume must be multiplied by so that adjusted close × volume ≈ raw trading value.
+/// </summary>
+public sealed class SplitEvent
+{
+    public required string Ticker { get; set; }
+    public DateOnly EventDate { get; set; }
+
+    /// <summary>(adjusted/raw before) ÷ (adjusted/raw after). 0.2 = 5-for-1 split, 10 = 1-for-10 reverse split.</summary>
+    public double PriceFactor { get; set; }
+
+    public bool SourceVolumeAdjusted { get; set; }
+    public double VolumeCorrection { get; set; } = 1;
+    public DateTimeOffset CheckedAt { get; set; }
+    public string? Notes { get; set; }
+}

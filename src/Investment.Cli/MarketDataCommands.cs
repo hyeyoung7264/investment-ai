@@ -24,13 +24,20 @@ public static class MarketDataCommands
 
         if (what is "securities" or "all") await svc.SyncSecurityMasterAsync(opt.From, ct);
         if (what is "indices" or "all") await svc.IngestIndicesAsync(opt, ct);
+        if (what is "splits")
+        {
+            var r = await new Investment.MarketData.Splits.SplitVerificationService(() => Database.Create(cs), new MarketDataStore(cs),
+                new Investment.MarketData.Splits.NaverRawQuoteSource(), Log).RunAsync(opt.From, opt.Concurrency, ct);
+            Log($"split verification: candidates={r.Candidates} events={r.Events} volume_corrections={r.VolumeCorrections} unverifiable={r.Unverifiable}");
+            return 0;
+        }
         if (what is "prices" or "all")
         {
             var run = await svc.IngestPricesAsync(opt, ct);
             if (run.Status != "ok") Console.Error.WriteLine($"price ingestion finished with status {run.Status}: {run.Notes}");
         }
         if (what is not ("securities" or "indices" or "prices" or "all"))
-            throw new CliUsageException("ingest securities|indices|prices|all");
+            throw new CliUsageException("ingest securities|indices|prices|splits|all");
         return 0;
     }
 
