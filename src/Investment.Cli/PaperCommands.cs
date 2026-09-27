@@ -40,6 +40,9 @@ public static class PaperCommands
                     await ingest.SyncSecurityMasterAsync(opt.From, ct);
                     await ingest.IngestIndicesAsync(opt, ct);
                     await ingest.IngestPricesAsync(opt, ct);
+                    if (Investment.MarketData.Dart.DartClient.LoadKey() is { } dartKey)
+                        await new Investment.MarketData.Dart.DisclosureIngestion(() => Database.Create(cs), new Investment.MarketData.Dart.DartClient(dartKey), Log)
+                            .RunAsync(DateOnly.FromDateTime(DateTime.Today).AddDays(-10), DateOnly.FromDateTime(DateTime.Today), ["B", "I"], ct);
                     await new Investment.MarketData.Splits.SplitVerificationService(() => Database.Create(cs), new MarketDataStore(cs),
                         new Investment.MarketData.Splits.NaverRawQuoteSource(), Log).RunAsync(opt.From, 6, ct);
                 }

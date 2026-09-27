@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Daily post-close job: refresh market data, advance all active paper sessions, log the result.
-# Run after 18:00 KST on trading days. Paper only — this system has no broker connection.
+# Run after 19:30 KST on trading days (after the DART filing window, so same-day filings are included). Paper only — this system has no broker connection.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p reports/paper
