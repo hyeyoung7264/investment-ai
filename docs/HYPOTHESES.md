@@ -50,3 +50,6 @@ H10 HOLD (net +1.07%, t=2.14 < 2.45 family threshold) · H11 HOLD (net +0.23%) �
 | ID | Strategy / conditions | Origin | Note |
 |---|---|---|---|
 | H13 | composite.portfolio [meanrev.zscore v4 params > breakout.volume default], shared capital, default risk (10 names×10%, gross ≤100%) | **post-hoc** (members chosen from OOS results) | Gate caps at HOLD. The point is to measure the actual shared-capital daily return |
+
+### Round 3 results
+H13 HOLD: shared capital **0.049%/day** (highest so far), EV +0.86%/trade (t=2.22), but MDD 27.1%, positive folds 2/6.
