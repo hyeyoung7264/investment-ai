@@ -37,6 +37,14 @@ public static class CliApp
                     return await ResearchCommands.RerunAsync(opts, ct);
                 case "runs":
                     return await ResearchCommands.ListRunsAsync(opts, ct);
+                case "walkforward":
+                    return await StudyCommands.WalkForwardAsync(opts, ct);
+                case "regime":
+                    return await StudyCommands.RegimeAsync(opts, ct);
+                case "evaluations":
+                    return await StudyCommands.EvaluationsAsync(opts, ct);
+                case "failures":
+                    return await StudyCommands.FailuresAsync(opts, ct);
                 default:
                     Console.Error.WriteLine($"unknown command: {args[0]}");
                     PrintHelp();
@@ -66,6 +74,12 @@ public static class CliApp
                        [--max-drawdown 0.25] [--stop-loss 0.10|none] [--max-participation 0.05] [--label text]
               rerun --run <id>              re-execute a stored run and verify data/result hashes
               runs [--limit 20]             list recent runs (net metrics)
+              walkforward --strategy <id> --hypothesis "text" [--params json | --grid '[json,...]']
+                       [--from 2017-01-01] [--to today] [--train 3] [--validation 1] [--oos 1] [--markets Kospi]
+                       + backtest options          rolling train/validation/OOS study, then Promotion Gate
+              regime [--index KOSPI]        classify and store daily market regimes
+              evaluations [--limit 30]      gate decisions and current strategy statuses
+              failures                      rejected experiments (never deleted)
 
             common options: --db <connection string>  (default: INVESTMENT_DB_CONNECTION or local dev cluster)
             """);

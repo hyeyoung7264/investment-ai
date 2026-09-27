@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Investment.Domain.Strategies;
+using Investment.Strategies.Composite;
 using Investment.Strategies.Control;
 using Investment.Strategies.MeanReversion;
 using Investment.Strategies.Momentum;
@@ -9,7 +10,7 @@ namespace Investment.Strategies;
 /// <summary>Registry of strategy implementations. Parameters come from JSON so each set is a distinct version.</summary>
 public static class StrategyCatalog
 {
-    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
 
     private static readonly Dictionary<string, Func<string?, IStrategy>> Factories = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -17,6 +18,8 @@ public static class StrategyCatalog
         [MeanReversionStrategy.Id] = json => new MeanReversionStrategy(Parse<MeanReversionParameters>(json)),
         [LiquidityLeadersStrategy.Id] = json => new LiquidityLeadersStrategy(Parse<LiquidityLeadersParameters>(json)),
         [RandomEntryStrategy.Id] = json => new RandomEntryStrategy(Parse<RandomEntryParameters>(json)),
+        [ShortTermReversalStrategy.Id] = json => new ShortTermReversalStrategy(Parse<ShortTermReversalParameters>(json)),
+        [RegimeFilterStrategy.Id] = json => new RegimeFilterStrategy(Parse<RegimeFilterParameters>(json)),
     };
 
     public static IReadOnlyCollection<string> Ids => Factories.Keys;

@@ -18,7 +18,8 @@ public sealed record BacktestRequest(
     BacktestConfig Config,
     string RunKind = "single",
     string? Label = null,
-    Guid? ParentRunId = null);
+    Guid? ParentRunId = null,
+    Guid? StudyId = null);
 
 public sealed record RunOutcome(BacktestRun Run, BacktestResult Result, BacktestMetric Gross, BacktestMetric Net);
 
@@ -29,6 +30,7 @@ public sealed class BacktestRunner(string connectionString, Action<string>? log 
 {
     private readonly Action<string> _log = log ?? (_ => { });
     private readonly Dictionary<(string, DateOnly, DateOnly), MarketDataSet> _cache = new();
+    private readonly CodeVersion _code = CodeVersion.Detect();
 
     public Func<InvestmentDbContext> DbFactory => () => Database.Create(connectionString);
 
@@ -55,7 +57,7 @@ public sealed class BacktestRunner(string connectionString, Action<string>? log 
         var sw = Stopwatch.StartNew();
         var result = new BacktestEngine().Run(strategy, data, req.Config);
         var elapsed = sw.Elapsed.TotalMilliseconds;
-        var run = await new BacktestRecorder(DbFactory).SaveAsync(result, req.Universe, CodeVersion.Detect(), req.RunKind, req.Label, req.ParentRunId, elapsed, ct);
+        var run = await new BacktestRecorder(DbFactory).SaveAsync(result, req.Universe, _code, req.RunKind, req.Label, req.ParentRunId, elapsed, ct, req.StudyId);
         _log($"{strategy.Descriptor.Id} {req.Config.Start:yyyy-MM-dd}..{req.Config.End:yyyy-MM-dd} [{req.RunKind}] run {run.Id} ({elapsed / 1000:F1}s, {result.Trades.Count} trades)");
         return new RunOutcome(run, result, run.Metrics.Single(m => m.Basis == CostBasis.Gross), run.Metrics.Single(m => m.Basis == CostBasis.Net));
     }

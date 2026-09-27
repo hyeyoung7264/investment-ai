@@ -60,6 +60,7 @@ public sealed class BacktestRun
     public required string RunKind { get; set; }
     public string? Label { get; set; }
     public Guid? ParentRunId { get; set; }
+    public Guid? StudyId { get; set; }
 
     public DateOnly StartDate { get; set; }
     public DateOnly EndDate { get; set; }

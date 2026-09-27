@@ -18,6 +18,10 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
     public DbSet<BacktestMetric> BacktestMetrics => Set<BacktestMetric>();
     public DbSet<BacktestTrade> BacktestTrades => Set<BacktestTrade>();
     public DbSet<BacktestEquityPoint> BacktestEquity => Set<BacktestEquityPoint>();
+    public DbSet<MarketRegimeDay> MarketRegimes => Set<MarketRegimeDay>();
+    public DbSet<ResearchStudy> ResearchStudies => Set<ResearchStudy>();
+    public DbSet<StrategyEvaluation> StrategyEvaluations => Set<StrategyEvaluation>();
+    public DbSet<ExperimentFailure> ExperimentFailures => Set<ExperimentFailure>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -113,6 +117,7 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
             e.HasMany(x => x.Trades).WithOne().HasForeignKey(x => x.RunId);
             e.HasMany(x => x.Equity).WithOne().HasForeignKey(x => x.RunId);
             e.HasIndex(x => x.ParentRunId);
+            e.HasIndex(x => x.StudyId);
         });
 
         b.Entity<BacktestMetric>(e =>
@@ -142,6 +147,49 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
             e.Property(x => x.NetEquity).HasPrecision(20, 2);
             e.Property(x => x.GrossEquity).HasPrecision(20, 2);
             e.Property(x => x.Cash).HasPrecision(20, 2);
+        });
+
+        b.Entity<MarketRegimeDay>(e =>
+        {
+            e.ToTable("market_regimes");
+            e.HasKey(x => new { x.IndexCode, x.Date });
+            e.Property(x => x.IndexCode).HasMaxLength(16);
+            e.Property(x => x.Trend).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Volatility).HasConversion<string>().HasMaxLength(16);
+        });
+
+        b.Entity<ResearchStudy>(e =>
+        {
+            e.ToTable("research_studies");
+            e.Property(x => x.StrategyId).HasMaxLength(64);
+            e.Property(x => x.Kind).HasMaxLength(32);
+            e.Property(x => x.CodeCommit).HasMaxLength(64);
+            e.Property(x => x.PlanJson).HasColumnType("jsonb");
+            e.Property(x => x.SummaryJson).HasColumnType("jsonb");
+            e.HasIndex(x => x.StrategyId);
+        });
+
+        b.Entity<StrategyEvaluation>(e =>
+        {
+            e.ToTable("strategy_evaluations");
+            e.Property(x => x.Stage).HasMaxLength(32);
+            e.Property(x => x.FromStatus).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.ToStatus).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.Decision).HasConversion<string>().HasMaxLength(16);
+            e.Property(x => x.EvidenceJson).HasColumnType("jsonb");
+            e.Property(x => x.CriteriaJson).HasColumnType("jsonb");
+            e.HasOne<StrategyVersion>().WithMany().HasForeignKey(x => x.StrategyVersionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.StrategyVersionId);
+        });
+
+        b.Entity<ExperimentFailure>(e =>
+        {
+            e.ToTable("experiment_failures");
+            e.Property(x => x.StrategyId).HasMaxLength(64);
+            e.Property(x => x.ParametersJson).HasColumnType("jsonb");
+            e.Property(x => x.ResultJson).HasColumnType("jsonb");
+            e.HasOne<StrategyVersion>().WithMany().HasForeignKey(x => x.StrategyVersionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.StrategyId);
         });
 
         ApplySnakeCase(b);

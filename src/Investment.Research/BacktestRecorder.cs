@@ -52,7 +52,7 @@ public sealed class BacktestRecorder(Func<InvestmentDbContext> dbFactory)
 
     public async Task<BacktestRun> SaveAsync(
         BacktestResult result, UniverseDefinition universe, CodeVersion code, string runKind, string? label,
-        Guid? parentRunId, double durationMs, CancellationToken ct = default)
+        Guid? parentRunId, double durationMs, CancellationToken ct = default, Guid? studyId = null)
     {
         var version = await EnsureVersionAsync(result.Strategy, ct);
         var run = new BacktestRun
@@ -62,6 +62,7 @@ public sealed class BacktestRecorder(Func<InvestmentDbContext> dbFactory)
             RunKind = runKind,
             Label = label,
             ParentRunId = parentRunId,
+            StudyId = studyId,
             StartDate = result.Equity.Count > 0 ? result.Equity[0].Date : result.Config.Start,
             EndDate = result.Equity.Count > 0 ? result.Equity[^1].Date : result.Config.End,
             InitialCapital = result.Config.InitialCapital,
