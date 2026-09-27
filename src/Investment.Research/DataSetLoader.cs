@@ -1,0 +1,53 @@
+using Investment.Domain.Market;
+using Investment.MarketData.Splits;
+using Investment.MarketData.Universe;
+using Investment.Persistence;
+using Microsoft.EntityFrameworkCore;
+
+namespace Investment.Research;
+
+/// <summary>
+/// Builds a <see cref="MarketDataSet"/> from the database in two streaming passes:
+/// (1) every security's bars → point-in-time universe, (2) full bars only for tickers that were ever members.
+/// </summary>
+public sealed class DataSetLoader(string connectionString)
+{
+    /// <summary>Calendar days of history loaded before the start date for indicator warmup.</summary>
+    public const int WarmupCalendarDays = 450;
+
+    public async Task<MarketDataSet> LoadAsync(UniverseDefinition universe, DateOnly start, DateOnly end, string indexCode = "KOSPI", CancellationToken ct = default)
+    {
+        var store = new MarketDataStore(connectionString);
+        var loadFrom = start.AddDays(-WarmupCalendarDays);
+        var index = await store.LoadIndexAsync(indexCode, loadFrom, end, ct);
+        if (index.Count == 0) throw new InvalidOperationException($"no {indexCode} index data; run `ingest indices` first");
+        var calendar = index.Select(b => b.Date).ToList();
+
+        Dictionary<string, Security> securities;
+        Dictionary<string, List<SplitEvent>> splits;
+        await using (var db = Database.Create(connectionString))
+        {
+            securities = await db.Securities.AsNoTracking().ToDictionaryAsync(s => s.Ticker, ct);
+            splits = (await db.SplitEvents.AsNoTracking().ToListAsync(ct)).GroupBy(e => e.Ticker).ToDictionary(g => g.Key, g => g.ToList());
+        }
+        // source leaves volume unadjusted for some splits; correct it so adjusted close × volume ≈ raw trading value
+        List<Bar> Corrected(string ticker, List<Bar> bars) =>
+            splits.TryGetValue(ticker, out var ev) ? SplitVerifier.ApplyVolumeCorrections(bars, ev) : bars;
+
+        var builder = new UniverseBuilder(universe, calendar, start, end);
+        var candidates = securities.Values.Where(builder.IsCandidateSecurity).Select(s => s.Ticker).ToList();
+        await foreach (var (ticker, bars) in store.StreamBarsByTickerAsync(loadFrom, end, candidates, ct))
+            if (securities.TryGetValue(ticker, out var sec))
+                builder.Add(sec, Corrected(ticker, bars));
+        var pit = builder.Build();
+
+        var members = pit.AllMembers();
+        var memberBars = new Dictionary<string, Bar[]>(StringComparer.Ordinal);
+        await foreach (var (ticker, bars) in store.StreamBarsByTickerAsync(loadFrom, end, members, ct))
+            memberBars[ticker] = Corrected(ticker, bars).ToArray();
+
+        return new MarketDataSet(calendar, memberBars,
+            securities.Where(kv => members.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value),
+            index.ToArray(), indexCode, pit, "naver-chart+kind");
+    }
+}

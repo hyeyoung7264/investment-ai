@@ -7,11 +7,9 @@
     <ProjectReference Include="..\Investment.Strategies\Investment.Strategies.csproj" />
     <ProjectReference Include="..\Investment.Risk\Investment.Risk.csproj" />
     <ProjectReference Include="..\Investment.Backtest\Investment.Backtest.csproj" />
-    <ProjectReference Include="..\Investment.Research\Investment.Research.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

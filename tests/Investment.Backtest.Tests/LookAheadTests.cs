@@ -175,3 +175,21 @@ public sealed class MetricsTests
     public void Slippage_grows_with_participation() =>
         Assert.Equal(0.001 + 0.1 * 0.02, new CostModel().Slippage(2_000_000, 100_000_000), 12);
 }
+
+public sealed class ResultHashTests
+{
+    [Fact]
+    public void Result_hash_does_not_depend_on_decimal_scale()
+    {
+        var d = new DateOnly(2024, 1, 2);
+        BacktestResult Make(decimal equity) => new()
+        {
+            Strategy = new Investment.Domain.Strategies.StrategyDescriptor("t", "t", "t", 1, "", new { }),
+            Config = new BacktestConfig { Start = d, End = d },
+            Trades = [], Equity = [new EquityPoint(d, equity, equity, equity, 0, 0)],
+            RiskEvents = [], Rejections = new Dictionary<string, int>(), DataHash = "", UniverseHash = "", DataSource = "",
+            BenchmarkReturn = 0, SignalCount = 0,
+        };
+        Assert.Equal(Make(100_000_000m).ResultHash(), Make(100_000_000.00m).ResultHash());
+    }
+}

@@ -48,7 +48,16 @@ public sealed class EngineTests
 
         var final = r.Equity[^1];
         Assert.Equal(10_000_000m + t.NetPnl, final.NetEquity, 6);
-        Assert.Equal(final.NetEquity + t.Costs, final.GrossEquity, 6);
+        // gross compounds session returns with costs added back: ≈ net + costs (second-order difference only)
+        // entry costs are added back on session 1, exit costs on session 4
+        var e = r.Equity;
+        var expectedGross = 10_000_000m * (e[1].NetEquity + entryCosts) / 10_000_000m
+                            * (e[4].NetEquity + exitCosts) / e[3].NetEquity * e[^1].NetEquity / e[4].NetEquity * e[3].NetEquity / e[1].NetEquity;
+        Assert.Equal(expectedGross, final.GrossEquity, 4);
+        Assert.True(final.GrossEquity > final.NetEquity + t.Costs); // saved entry costs would have compounded with the +10% move
+        var grossReturns = Metrics.DailyReturns(10_000_000, r.Equity.Select(e => (double)e.GrossEquity).ToList());
+        var netReturns = Metrics.DailyReturns(10_000_000, r.Equity.Select(e => (double)e.NetEquity).ToList());
+        Assert.Equal(netReturns[0], grossReturns[0], 12); // no trades on the first session
     }
 
     [Fact]

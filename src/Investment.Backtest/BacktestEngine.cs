@@ -10,7 +10,8 @@ namespace Investment.Backtest;
 ///   2. intraday — stop-loss / take-profit (gap → open price; stop wins if both touched)
 ///   3. close  — value positions, record equity, risk assessment (daily-loss block / drawdown halt)
 ///   4. after close — strategy sees data up to D only; risk engine sizes entries for D+1's open
-/// Gross and net results come from the same path: gross equity = net equity + cumulative costs.
+/// Gross and net results come from the same path: gross session return = (net equity + that session's costs)
+/// / previous net equity − 1, compounded — i.e. identical positions with costs removed.
 /// </summary>
 public sealed class BacktestEngine
 {
@@ -55,8 +56,11 @@ public sealed class BacktestEngine
         var risk = new RiskEngine(cfg.Risk);
         var costs = cfg.Costs;
 
-        decimal cash = cfg.InitialCapital;
+        decimal cash = cfg.InitialCapital + 0.00m; // normalize decimal scale (CLI vs DB-restored values)
         decimal cumulativeCosts = 0;
+        decimal costsAtPrevClose = 0;
+        decimal grossEquity = cash;
+        decimal prevNetEquity = cash;
         double peak = (double)cfg.InitialCapital;
         double prevEquity = (double)cfg.InitialCapital;
         var positions = new SortedDictionary<string, Position>(StringComparer.Ordinal);
@@ -207,7 +211,12 @@ public sealed class BacktestEngine
 
             var invested = positions.Values.Sum(p => (decimal)p.LastClose * p.Quantity);
             var netEquity = cash + invested;
-            equity.Add(new EquityPoint(date, netEquity, netEquity + cumulativeCosts, cash, positions.Count, invested));
+            // gross = same positions with the session's costs added back, compounded session by session
+            var sessionCosts = cumulativeCosts - costsAtPrevClose;
+            costsAtPrevClose = cumulativeCosts;
+            if (prevNetEquity > 0) grossEquity *= (netEquity + sessionCosts) / prevNetEquity;
+            prevNetEquity = netEquity;
+            equity.Add(new EquityPoint(date, netEquity, grossEquity, cash, positions.Count, invested));
             var eq = (double)netEquity;
             peak = Math.Max(peak, eq);
             var sessionReturn = prevEquity > 0 ? eq / prevEquity - 1 : 0;

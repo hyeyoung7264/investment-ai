@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\Investment.Backtest\Investment.Backtest.csproj" />
     <ProjectReference Include="..\..\src\Investment.Strategies\Investment.Strategies.csproj" />
     <ProjectReference Include="..\..\src\Investment.Cli\Investment.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Investment.Research\Investment.Research.csproj" />
   </ItemGroup>
 
 </Project>

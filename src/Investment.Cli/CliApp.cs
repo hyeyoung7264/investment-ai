@@ -31,6 +31,12 @@ public static class CliApp
                     return await MarketDataCommands.IngestAsync(sub ?? "all", opts, ct);
                 case "quality":
                     return await MarketDataCommands.QualityAsync(opts, ct);
+                case "backtest":
+                    return await ResearchCommands.BacktestAsync(opts, ct);
+                case "rerun":
+                    return await ResearchCommands.RerunAsync(opts, ct);
+                case "runs":
+                    return await ResearchCommands.ListRunsAsync(opts, ct);
                 default:
                     Console.Error.WriteLine($"unknown command: {args[0]}");
                     PrintHelp();
@@ -54,6 +60,12 @@ public static class CliApp
                                             collect KIND security master (incl. delisted) and Naver daily prices
               quality [--from] [--to] [--out reports/data-quality.json]
                                             data integrity report
+              backtest --strategy <id|all> [--from 2017-01-01] [--to today] [--params json] [--top 100]
+                       [--capital 1e8] [--commission 0.00015] [--slippage 0.001] [--impact 0.1]
+                       [--max-positions 10] [--max-weight 0.1] [--max-sector 0.3] [--max-daily-loss 0.03]
+                       [--max-drawdown 0.25] [--stop-loss 0.10|none] [--max-participation 0.05] [--label text]
+              rerun --run <id>              re-execute a stored run and verify data/result hashes
+              runs [--limit 20]             list recent runs (net metrics)
 
             common options: --db <connection string>  (default: INVESTMENT_DB_CONNECTION or local dev cluster)
             """);

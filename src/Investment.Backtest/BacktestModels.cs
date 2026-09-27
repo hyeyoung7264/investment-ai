@@ -64,21 +64,25 @@ public sealed class BacktestResult
     public DateOnly? HaltedOn { get; init; }
     public string? HaltReason { get; init; }
 
-    public const string EngineVersion = "1.0.0";
+    /// <summary>1.1.0: compounded gross curve; scale-independent result hash.</summary>
+    public const string EngineVersion = "1.1.0";
 
-    /// <summary>Canonical digest of trades + equity. Same inputs must give the same hash.</summary>
+    /// <summary>
+    /// Canonical digest of trades + equity. Fixed-point formatting makes it independent of decimal scale
+    /// (100000000 vs 100000000.00 restored from the database). Same inputs must give the same hash.
+    /// </summary>
     public string ResultHash()
     {
         var sb = new StringBuilder();
         foreach (var t in Trades)
             sb.Append(t.Ticker).Append(',').Append(t.EntryDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture)).Append(',')
               .Append(t.ExitDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture)).Append(',').Append(t.Quantity).Append(',')
-              .Append(Math.Round(t.EntryPrice, 4).ToString(CultureInfo.InvariantCulture)).Append(',')
-              .Append(Math.Round(t.ExitPrice, 4).ToString(CultureInfo.InvariantCulture)).Append(',')
-              .Append(Math.Round(t.NetPnl, 2).ToString(CultureInfo.InvariantCulture)).Append(',').Append(t.ExitReason).Append('\n');
+              .Append(t.EntryPrice.ToString("F4", CultureInfo.InvariantCulture)).Append(',')
+              .Append(t.ExitPrice.ToString("F4", CultureInfo.InvariantCulture)).Append(',')
+              .Append(t.NetPnl.ToString("F2", CultureInfo.InvariantCulture)).Append(',').Append(t.ExitReason).Append('\n');
         foreach (var e in Equity)
             sb.Append(e.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture)).Append(',')
-              .Append(Math.Round(e.NetEquity, 2).ToString(CultureInfo.InvariantCulture)).Append('\n');
+              .Append(e.NetEquity.ToString("F2", CultureInfo.InvariantCulture)).Append('\n');
         return Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(sb.ToString())));
     }
 }

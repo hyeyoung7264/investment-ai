@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Investment.Domain.Strategies;
+using Investment.Strategies.Control;
 using Investment.Strategies.MeanReversion;
 using Investment.Strategies.Momentum;
 
@@ -14,6 +15,8 @@ public static class StrategyCatalog
     {
         [MomentumStrategy.Id] = json => new MomentumStrategy(Parse<MomentumParameters>(json)),
         [MeanReversionStrategy.Id] = json => new MeanReversionStrategy(Parse<MeanReversionParameters>(json)),
+        [LiquidityLeadersStrategy.Id] = json => new LiquidityLeadersStrategy(Parse<LiquidityLeadersParameters>(json)),
+        [RandomEntryStrategy.Id] = json => new RandomEntryStrategy(Parse<RandomEntryParameters>(json)),
     };
 
     public static IReadOnlyCollection<string> Ids => Factories.Keys;
