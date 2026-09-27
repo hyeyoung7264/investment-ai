@@ -30,7 +30,6 @@ public sealed record UniverseDefinition
 /// </summary>
 public sealed class UniverseBuilder
 {
-    public const int KnownDelistingWindowDays = 14;
 
     private readonly UniverseDefinition _def;
     private readonly IReadOnlyList<(DateOnly Selection, DateOnly Effective)> _schedule;
@@ -82,7 +81,7 @@ public sealed class UniverseBuilder
             if (last.Close < _def.MinPrice) continue;
             // Only the final liquidation-trading window (정리매매, ~7 sessions) is public knowledge before the
             // delisting date, so exclusion is limited to that window to avoid using future delisting info.
-            if (security.DelistedDate is { } dd && dd.DayNumber - sel.DayNumber <= KnownDelistingWindowDays) continue;
+            if (security.DelistedDate is { } dd && dd.DayNumber - sel.DayNumber <= KrxRules.KnownDelistingWindowDays) continue;
 
             var n = Math.Min(_def.LiquidityLookback, idx + 1);
             for (var j = 0; j < n; j++)
