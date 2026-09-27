@@ -22,7 +22,19 @@ public sealed record PaperStartRequest(
     UniverseDefinition Universe,
     CostModel Costs,
     RiskLimits Risk,
-    int MinRegimeTrades = 20);
+    int MinRegimeTrades = 20,
+    BookLimits? Book = null);
+
+/// <summary>
+/// Capital book shared by all paper sessions: no strategy may hold more than <see cref="MaxStrategyWeight"/> of the
+/// book, and a combined drawdown beyond <see cref="MaxBookDrawdown"/> stops every session.
+/// </summary>
+public sealed record BookLimits
+{
+    public decimal BookCapital { get; init; } = 200_000_000m;
+    public double MaxStrategyWeight { get; init; } = 0.5;
+    public double MaxBookDrawdown { get; init; } = 0.15;
+}
 
 public sealed record PaperDailyResult(Guid SessionId, string Name, int SessionsProcessed, DateOnly? From, DateOnly? To, int NewOrders, int NewTrades, decimal Equity, string? Regime, bool RegimeBlocked, GateResult? Gate);
 
@@ -80,6 +92,15 @@ public sealed class PaperTradingService(string connectionString, Action<string>?
         var start = req.StartDate ?? lastData;
         if (start < lastData)
             throw new InvalidOperationException($"paper sessions cannot start in the past ({start:yyyy-MM-dd} < latest data {lastData:yyyy-MM-dd}); that would be a backtest");
+
+        var book = req.Book ?? new BookLimits();
+        var allocated = await db.PaperSessions.Where(x => x.Status == PaperSessionStatus.Active).SumAsync(x => (decimal?)x.InitialCapital, ct) ?? 0;
+        if (req.Capital > book.BookCapital * (decimal)book.MaxStrategyWeight)
+            throw new InvalidOperationException($"capital {req.Capital:N0} exceeds {book.MaxStrategyWeight:P0} of the book {book.BookCapital:N0} (one strategy may not dominate)");
+        if (allocated + req.Capital > book.BookCapital)
+            throw new InvalidOperationException($"book {book.BookCapital:N0} already has {allocated:N0} allocated; {req.Capital:N0} does not fit");
+        if (await db.PaperSessions.AnyAsync(x => x.Status == PaperSessionStatus.Active && x.StrategyVersionId == version.Id, ct))
+            throw new InvalidOperationException($"{version.StrategyId} v{version.Version} already has an active paper session");
 
         var now = DateTimeOffset.UtcNow;
         var session = new PaperSession
@@ -166,7 +187,43 @@ public sealed class PaperTradingService(string connectionString, Action<string>?
             sessions = await db.PaperSessions.Where(s => s.Status == PaperSessionStatus.Active).OrderBy(s => s.CreatedAt).ToListAsync(ct);
         var results = new List<PaperDailyResult>();
         foreach (var s in sessions) results.Add(await RunSessionAsync(s.Id, ct));
+        await EnforceBookDrawdownAsync(new BookLimits(), ct);
         return results;
+    }
+
+    /// <summary>
+    /// Portfolio-level stop: combined equity of all active sessions vs its peak. Individual sessions have their own
+    /// risk limits; this catches correlated losses across strategies.
+    /// </summary>
+    public async Task<double> EnforceBookDrawdownAsync(BookLimits limits, CancellationToken ct = default)
+    {
+        await using var db = Db();
+        var active = await db.PaperSessions.Where(s => s.Status == PaperSessionStatus.Active).ToListAsync(ct);
+        if (active.Count == 0) return 0;
+        var ids = active.Select(s => s.Id).ToList();
+        var points = await db.PaperEquity.Where(e => ids.Contains(e.SessionId)).ToListAsync(ct);
+        var capital = active.ToDictionary(s => s.Id, s => s.InitialCapital);
+        var last = new Dictionary<Guid, decimal>(capital);
+        double peak = (double)capital.Values.Sum(), dd = 0;
+        foreach (var day in points.GroupBy(p => p.Date).OrderBy(g => g.Key))
+        {
+            foreach (var p in day) last[p.SessionId] = p.NetEquity;
+            var total = (double)last.Values.Sum();
+            peak = Math.Max(peak, total);
+            dd = 1 - total / peak;
+        }
+        if (dd >= limits.MaxBookDrawdown)
+        {
+            foreach (var s in active)
+            {
+                s.Status = PaperSessionStatus.Stopped;
+                s.StoppedReason = $"book drawdown {dd:P1} >= {limits.MaxBookDrawdown:P0}";
+                s.UpdatedAt = DateTimeOffset.UtcNow;
+            }
+            await db.SaveChangesAsync(ct);
+            _log($"BOOK STOP: combined paper drawdown {dd:P1}; all sessions stopped");
+        }
+        return dd;
     }
 
     public async Task<PaperDailyResult> RunSessionAsync(Guid sessionId, CancellationToken ct = default)

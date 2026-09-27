@@ -24,7 +24,8 @@ public static class PaperCommands
                     o.Get("name") ?? $"{o.Require("strategy")}-{DateTime.Today:yyyyMMdd}", o.Require("strategy"),
                     o.Get("version-id") is { } v ? Guid.Parse(v) : null,
                     o.Get("start") is { } s ? DateOnly.Parse(s) : null,
-                    cfg.InitialCapital, ResearchCommands.Universe(o), cfg.Costs, cfg.Risk), ct);
+                    cfg.InitialCapital, ResearchCommands.Universe(o), cfg.Costs, cfg.Risk,
+                    Book: new BookLimits { BookCapital = (decimal)o.GetDouble("book", 200_000_000), MaxStrategyWeight = o.GetDouble("max-strategy-weight", 0.5) }), ct);
                 Console.WriteLine($"paper session {session.Id} '{session.Name}' started {session.StartDate:yyyy-MM-dd}");
                 Console.WriteLine($"  strategy {session.StrategyId} params {session.ParametersJson}");
                 Console.WriteLine($"  expected EV/trade {ReportFormatter.P(session.ExpectedEvPerTrade, 3)}; entries paused in regimes {session.BlockedRegimesJson}");

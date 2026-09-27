@@ -101,6 +101,11 @@ public sealed class PaperTradingTests(PaperDatabaseFixture fx)
             new PaperStartRequest("backfill", MeanReversionStrategy.Id, version.Id, days[200], 50_000_000m, universe, costs, risk)));
         var session = await svc.StartAsync(new PaperStartRequest("t", MeanReversionStrategy.Id, version.Id, null, 50_000_000m, universe, costs, risk, MinRegimeTrades: 0));
         Assert.Equal(days[299], session.StartDate);
+        // capital concentration and duplicate sessions are refused
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.StartAsync(
+            new PaperStartRequest("too big", MeanReversionStrategy.Id, version.Id, null, 150_000_000m, universe, costs, risk, MinRegimeTrades: 0)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.StartAsync(
+            new PaperStartRequest("dup", MeanReversionStrategy.Id, version.Id, null, 10_000_000m, universe, costs, risk, MinRegimeTrades: 0)));
 
         // three daily runs as data arrives
         var r1 = await svc.RunSessionAsync(session.Id);
