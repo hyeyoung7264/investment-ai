@@ -49,11 +49,11 @@ public sealed class ScriptedStrategy(IReadOnlyList<DateOnly> calendar) : IStrate
 {
     private readonly Dictionary<DateOnly, List<Signal>> _script = new();
 
-    public ScriptedStrategy At(int session, string ticker, SignalAction action, double score = 1)
+    public ScriptedStrategy At(int session, string ticker, SignalAction action, double score = 1, bool dayTrade = false)
     {
         var d = calendar[session];
         if (!_script.TryGetValue(d, out var list)) _script[d] = list = [];
-        list.Add(new Signal(ticker, action, score, $"scripted {action}"));
+        list.Add(new Signal(ticker, action, score, $"scripted {action}", dayTrade));
         return this;
     }
 

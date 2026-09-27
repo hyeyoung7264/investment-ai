@@ -63,7 +63,11 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
         // multiple testing: every earlier (non-diagnostic) study of this strategy id counts as variants tried
         int priorStudies;
         await using (var db0 = runner.DbFactory())
-            priorStudies = await db0.ResearchStudies.CountAsync(s => s.StrategyId == strategyId && s.Kind == "walk-forward", ct);
+        {
+            // the whole family (e.g. meanrev.*) counts: related ideas share the same data-mining budget
+            var familyPrefix = strategyId.Split('.')[0] + ".";
+            priorStudies = await db0.ResearchStudies.CountAsync(s => (s.StrategyId == strategyId || s.StrategyId.StartsWith(familyPrefix)) && s.Kind == "walk-forward", ct);
+        }
         var variants = plan.ParameterGrid.Count + (diagnostic ? 0 : priorStudies);
         var study = new ResearchStudy
         {

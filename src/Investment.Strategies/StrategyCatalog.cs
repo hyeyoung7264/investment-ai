@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Investment.Domain.Strategies;
+using Investment.Strategies.Breakout;
 using Investment.Strategies.Composite;
 using Investment.Strategies.Control;
 using Investment.Strategies.MeanReversion;
@@ -19,6 +20,8 @@ public static class StrategyCatalog
         [LiquidityLeadersStrategy.Id] = json => new LiquidityLeadersStrategy(Parse<LiquidityLeadersParameters>(json)),
         [RandomEntryStrategy.Id] = json => new RandomEntryStrategy(Parse<RandomEntryParameters>(json)),
         [ShortTermReversalStrategy.Id] = json => new ShortTermReversalStrategy(Parse<ShortTermReversalParameters>(json)),
+        [IntradayReboundStrategy.Id] = json => new IntradayReboundStrategy(Parse<IntradayReboundParameters>(json)),
+        [VolumeBreakoutStrategy.Id] = json => new VolumeBreakoutStrategy(Parse<VolumeBreakoutParameters>(json)),
         [RegimeFilterStrategy.Id] = json => new RegimeFilterStrategy(Parse<RegimeFilterParameters>(json)),
     };
 

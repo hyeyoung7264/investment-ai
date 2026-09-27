@@ -17,9 +17,12 @@ public sealed class PositionState
     public double Score { get; init; }
     public double LastClose { get; set; }
     public string? EntryRegime { get; init; }
+
+    /// <summary>Closed at the close of the entry session (or the next tradable close).</summary>
+    public bool DayTrade { get; init; }
 }
 
-public sealed record OrderState(string Ticker, bool IsBuy, long Quantity, DateOnly SignalDate, string Reason, double Score);
+public sealed record OrderState(string Ticker, bool IsBuy, long Quantity, DateOnly SignalDate, string Reason, double Score, bool DayTrade = false);
 
 /// <summary>
 /// Complete, serializable simulation state. A backtest keeps it in memory; paper trading persists it between
@@ -195,6 +198,7 @@ public sealed class Simulator
                 EntryFill = fill, EntryRef = (decimal)bar.Open, EntryCosts = commission + slipCost,
                 EntryReason = o.Reason, Score = o.Score, LastClose = bar.Open,
                 EntryRegime = RegimeAt(o.SignalDate),
+                DayTrade = o.DayTrade,
             };
             _obs.OnFill(date, o, fill, qty);
         }
@@ -243,6 +247,18 @@ public sealed class Simulator
                     t.Security?.DelistedDate is not null ? "Delisted" : "DataEnd");
                 pending.RemoveAll(o => o.Ticker == p.Ticker);
             }
+        }
+
+        // day trades: exit at the session close (not possible when halted, missing or locked limit-down)
+        foreach (var p in positions.Values.Where(p => p.DayTrade).ToList())
+        {
+            var t = _tickers[p.Ticker];
+            var bi = t.BarOn[i];
+            if (bi < 0 || t.Bars[bi].IsHalted) continue;
+            var bar = t.Bars[bi];
+            if (bi > 0 && KrxRules.IsLockedLimitDown(bar, t.Bars[bi - 1].Close)) continue;
+            ClosePosition(p, i, (decimal)bar.Close, SellFill(t, i, bar.Close, p.Quantity), "SessionClose");
+            pending.RemoveAll(o => o.Ticker == p.Ticker && !o.IsBuy);
         }
 
         if (isLast)
@@ -329,9 +345,10 @@ public sealed class Simulator
         }
         var alloc = _risk.Allocate(snapshot, candidates, exiting, costs.EntryBuffer);
         foreach (var r in alloc.Rejected) _obs.OnRejection(r.Rule);
+        var dayTrade = signals.Where(s => s.Action == SignalAction.Buy && s.DayTrade).Select(s => s.Ticker).ToHashSet(StringComparer.Ordinal);
         foreach (var a in alloc.Approved)
         {
-            var o = new OrderState(a.Ticker, true, a.Quantity, date, a.Reason, a.Score);
+            var o = new OrderState(a.Ticker, true, a.Quantity, date, a.Reason, a.Score, dayTrade.Contains(a.Ticker));
             pending.Add(o);
             _obs.OnOrder(date, o, a.ReferencePrice, regime);
         }

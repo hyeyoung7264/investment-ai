@@ -223,4 +223,33 @@ public sealed class EngineTests
         Assert.Empty(r.Trades);
         Assert.Equal(1, r.Rejections["signal-outside-universe"]);
     }
+
+    [Fact]
+    public void Day_trade_enters_at_open_and_exits_at_the_same_session_close()
+    {
+        var m = new TestMarket(6).Flat("A", 1000);
+        m.Set("A", 1, 1000, 1080, 990, 1050);
+        var s = new ScriptedStrategy(m.Calendar).At(0, "A", SignalAction.Buy, dayTrade: true);
+        var r = new BacktestEngine().Run(s, m.Build(), Config(m, CostModel.Zero));
+        var t = Assert.Single(r.Trades);
+        Assert.Equal(m.Calendar[1], t.EntryDate);
+        Assert.Equal(m.Calendar[1], t.ExitDate);
+        Assert.Equal(1000m, t.EntryPrice);
+        Assert.Equal(1050m, t.ExitPrice);
+        Assert.Equal("SessionClose", t.ExitReason);
+        Assert.Equal(0, r.Equity[1].Positions);
+    }
+
+    [Fact]
+    public void Day_trade_stop_loss_fires_before_the_close_exit()
+    {
+        var risk = new RiskLimits { MaxPositions = 1, MaxPositionWeight = 1, MaxSectorWeight = 1, StopLoss = 0.05, MaxParticipation = 1, MaxDailyLoss = 1, MaxDrawdown = 1 };
+        var m = new TestMarket(6).Flat("A", 1000);
+        m.Set("A", 1, 1000, 1010, 900, 1040);
+        var s = new ScriptedStrategy(m.Calendar).At(0, "A", SignalAction.Buy, dayTrade: true);
+        var r = new BacktestEngine().Run(s, m.Build(), Config(m, CostModel.Zero, risk));
+        var t = Assert.Single(r.Trades);
+        Assert.Equal("StopLoss", t.ExitReason);
+        Assert.Equal(950m, t.ExitPrice);
+    }
 }

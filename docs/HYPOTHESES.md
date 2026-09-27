@@ -21,3 +21,13 @@ Shared setup (M2 walk-forward, recorded 2026-09-27):
 | H4 | meanrev.zscore v1, KOSPI-only universe | H2 works only on KOSPI (large, liquid) | **post-hoc** (M1 by-market breakdown) | 1 | Same as above |
 | H5 | reversal.st v1 (5-day losers, 5-day hold) | Short-term reversal premium in liquid stocks | a-priori (literature: KRX short-term reversal) | 1 | Turnover ~50x/yr, so likely erased by costs |
 | H6 | meanrev.zscore grid: EntryZ {-2,-2.5} × TrendLength {200, null} | Stricter entry cuts costs relative to edge | a-priori (cost analysis) | 4 | Required t rises to 2.24 |
+
+## M5 — alpha search round 1 (recorded 2026-09-27, before running)
+
+Starting from this round, multiple testing counts **every walk-forward study in the family (`meanrev.*`, etc.)**.
+
+| ID | Strategy / conditions | Hypothesis | Origin | Expected |
+|---|---|---|---|---|
+| H7 | meanrev.intraday (z20 ≤ -2.5, next open→same-day close) | Most of the rebound after an extreme sell-off happens the next day. Daily capital recycling raises daily return | Derived from H6 (same data: weak evidence) | Round-trip cost per trade is the same, so it likely fails if the per-trade edge shrinks |
+| H8 | breakout.volume (20-day high + volume ≥3x + bullish candle, 5 days/SMA10) | Information-driven buying continues | a-priori (spec Breakout/Volume group) | Korean theme-stock chasing tends to reverse, so negative is possible |
+| H9 | meanrev.zscore v4 params, MaxPositions 20 (weight 10%) | More capital deployed when signals cluster on panic days raises daily return | Capacity analysis (M1 max-positions rejections) | Higher return, but MDD also rises |

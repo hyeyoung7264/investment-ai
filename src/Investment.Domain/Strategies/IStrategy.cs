@@ -13,8 +13,9 @@ public enum SignalAction
 /// <summary>
 /// Strategy output for one ticker at one as-of close. Buy = "want to hold", Sell = "want to exit".
 /// Score orders buy candidates when capacity is limited. Reason is persisted as evidence.
+/// DayTrade = a buy that is entered at the next open and closed at that same session's close.
 /// </summary>
-public sealed record Signal(string Ticker, SignalAction Action, double Score, string Reason);
+public sealed record Signal(string Ticker, SignalAction Action, double Score, string Reason, bool DayTrade = false);
 
 /// <summary>Immutable identity of a strategy implementation + parameter set.</summary>
 public sealed record StrategyDescriptor(
