@@ -31,7 +31,7 @@ public static class StudyCommands
             universe = universe with { Markets = m.Split(',').Select(x => Enum.Parse<MarketType>(x, true)).ToList() };
         var runner = new BacktestRunner(cs, Log);
         var outcome = await new WalkForwardRunner(runner, Log).RunAsync(strategyId, o.Require("hypothesis"), plan, universe,
-            (s, e) => ResearchCommands.Config(o, s, e), new GateCriteria(), ct, diagnostic: o.Has("diagnostic"));
+            (s, e) => ResearchCommands.Config(o, s, e), new GateCriteria(), ct, diagnostic: o.Has("diagnostic"), postHoc: o.Has("post-hoc"));
 
         var e2 = outcome.Evidence;
         Console.WriteLine($"""
@@ -131,6 +131,8 @@ public static class StudyCommands
     public static async Task<int> EvaluationsAsync(CliOptions o, CancellationToken ct)
     {
         await using var db = Database.Create(o.Get("db"));
+        foreach (var id in await db.Strategies.Select(s => s.Id).ToListAsync(ct))
+            await db.RollupStrategyStatusAsync(id, ct);
         var evals = await db.StrategyEvaluations.AsNoTracking().OrderByDescending(e => e.EvaluatedAt).Take(o.GetInt("limit", 30))
             .Join(db.StrategyVersions, e => e.StrategyVersionId, v => v.Id, (e, v) => new { e, v }).ToListAsync(ct);
         foreach (var x in evals)

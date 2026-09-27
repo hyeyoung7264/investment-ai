@@ -148,3 +148,20 @@ public sealed class BacktestEquityPoint
     public decimal Cash { get; set; }
     public int Positions { get; set; }
 }
+
+public static class StrategyStatusRules
+{
+    private static readonly StrategyStatus[] Progress =
+        [StrategyStatus.Approved, StrategyStatus.Paper, StrategyStatus.Validated, StrategyStatus.Backtested, StrategyStatus.Experimental];
+
+    /// <summary>
+    /// A strategy's status is its most advanced active version; only when no version is active is it
+    /// Disabled (if any version was disabled) or Rejected.
+    /// </summary>
+    public static StrategyStatus Rollup(IEnumerable<StrategyStatus> versionStatuses)
+    {
+        var set = versionStatuses.ToHashSet();
+        foreach (var s in Progress) if (set.Contains(s)) return s;
+        return set.Contains(StrategyStatus.Disabled) ? StrategyStatus.Disabled : StrategyStatus.Rejected;
+    }
+}

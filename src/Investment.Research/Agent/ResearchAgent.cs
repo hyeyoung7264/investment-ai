@@ -128,7 +128,8 @@ public sealed class ResearchAgent(BacktestRunner runner, IReadOnlyList<IHypothes
                 };
                 _log($"agent: studying {p.StrategyId} — {p.Hypothesis}");
                 var outcome = await wf.RunAsync(p.StrategyId, $"[{p.Origin}] {p.Hypothesis}", plan with { ParameterGrid = p.ParameterGrid },
-                    universe, config, new GateCriteria(), ct, fingerprint: Fingerprint(p, plan));
+                    universe, config, new GateCriteria(), ct, fingerprint: Fingerprint(p, plan),
+                    postHoc: p.Origin.Contains("post-hoc", StringComparison.OrdinalIgnoreCase));
                 executed.Add((p, outcome));
             }
         }

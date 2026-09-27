@@ -122,10 +122,8 @@ public sealed class PaperTradingService(string connectionString, Action<string>?
             Reasons = $"validated by evaluation {evaluation.Id}; paper session {session.Id} from {start:yyyy-MM-dd}; entries paused in {string.Join(", ", blocked)}",
         });
         version.Status = StrategyStatus.Paper;
-        var def = await db.Strategies.SingleAsync(s => s.Id == version.StrategyId, ct);
-        def.Status = StrategyStatus.Paper;
-        def.UpdatedAt = now;
         await db.SaveChangesAsync(ct);
+        await db.RollupStrategyStatusAsync(version.StrategyId, ct);
         return session;
     }
 
@@ -340,15 +338,13 @@ public sealed class PaperTradingService(string connectionString, Action<string>?
                 Reasons = string.Join("; ", gate.Reasons), EvaluatedAt = now,
             });
             version.Status = gate.To;
-            var def = await db.Strategies.SingleAsync(s => s.Id == version.StrategyId, ct);
-            def.Status = gate.To;
-            def.UpdatedAt = now;
             if (gate.Decision == GateDecision.Disable)
             {
                 session.Status = PaperSessionStatus.Disabled;
                 session.StoppedReason = string.Join("; ", gate.Reasons);
             }
             await db.SaveChangesAsync(ct);
+            await db.RollupStrategyStatusAsync(version.StrategyId, ct);
         }
         return gate;
     }

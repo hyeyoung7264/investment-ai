@@ -75,6 +75,16 @@ public sealed record GateResult(GateDecision Decision, StrategyStatus To, IReadO
 /// </summary>
 public static class PromotionGate
 {
+    /// <summary>
+    /// A hypothesis derived from the same out-of-sample period it is tested on cannot be validated by that test:
+    /// promotion is capped at HOLD; only forward (paper) evidence can confirm it. Rejections still apply.
+    /// </summary>
+    public static GateResult CapPostHoc(GateResult r, StrategyStatus current) =>
+        r.Decision == GateDecision.Promote
+            ? new(GateDecision.Hold, current == StrategyStatus.Experimental ? StrategyStatus.Backtested : current,
+                [.. r.Reasons, "post-hoc hypothesis: OOS overlaps the data that suggested it — promotion requires forward evidence"])
+            : r;
+
     /// <summary>BACKTESTED → VALIDATED / hold / REJECTED from walk-forward out-of-sample evidence.</summary>
     public static GateResult EvaluateValidation(StrategyStatus current, OosEvidence e, GateCriteria c)
     {

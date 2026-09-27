@@ -46,6 +46,25 @@ public sealed class ResearchTests
     }
 
     [Fact]
+    public void Post_hoc_hypotheses_cannot_be_promoted_by_the_same_oos()
+    {
+        var promoted = PromotionGate.EvaluateValidation(StrategyStatus.Backtested, Good, new GateCriteria());
+        var capped = PromotionGate.CapPostHoc(promoted, StrategyStatus.Backtested);
+        Assert.Equal(GateDecision.Hold, capped.Decision);
+        Assert.Equal(StrategyStatus.Backtested, capped.To);
+        var rejected = PromotionGate.EvaluateValidation(StrategyStatus.Backtested, Good with { NetEvPerTrade = -0.01 }, new GateCriteria());
+        Assert.Equal(GateDecision.Reject, PromotionGate.CapPostHoc(rejected, StrategyStatus.Backtested).Decision);
+    }
+
+    [Theory]
+    [InlineData(new[] { StrategyStatus.Backtested, StrategyStatus.Paper, StrategyStatus.Rejected }, StrategyStatus.Paper)]
+    [InlineData(new[] { StrategyStatus.Rejected, StrategyStatus.Rejected }, StrategyStatus.Rejected)]
+    [InlineData(new[] { StrategyStatus.Rejected, StrategyStatus.Disabled }, StrategyStatus.Disabled)]
+    [InlineData(new[] { StrategyStatus.Rejected, StrategyStatus.Experimental }, StrategyStatus.Experimental)]
+    public void Strategy_status_is_its_most_advanced_active_version(StrategyStatus[] versions, StrategyStatus expected) =>
+        Assert.Equal(expected, StrategyStatusRules.Rollup(versions));
+
+    [Fact]
     public void Rejected_versions_are_never_resurrected()
     {
         var r = PromotionGate.EvaluateValidation(StrategyStatus.Rejected, Good, new GateCriteria());

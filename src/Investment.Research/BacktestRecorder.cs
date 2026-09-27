@@ -112,9 +112,8 @@ public sealed class BacktestRecorder(Func<InvestmentDbContext> dbFactory)
         {
             // evidence exists now; validation (M2) decides anything beyond BACKTESTED
             v.Status = StrategyStatus.Backtested;
-            if (v.Strategy!.Status == StrategyStatus.Experimental) v.Strategy.Status = StrategyStatus.Backtested;
-            v.Strategy.UpdatedAt = DateTimeOffset.UtcNow;
             await db2.SaveChangesAsync(ct);
+            await db2.RollupStrategyStatusAsync(v.StrategyId, ct);
         }
         return run;
     }

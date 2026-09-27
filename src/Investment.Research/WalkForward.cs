@@ -3,6 +3,7 @@ using Investment.Backtest;
 using Investment.Domain.Market;
 using Investment.Domain.Research;
 using Investment.MarketData.Universe;
+using Investment.Persistence;
 using Investment.Strategies;
 using Investment.Strategies.Control;
 using Microsoft.EntityFrameworkCore;
@@ -56,7 +57,7 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
     /// </param>
     public async Task<StudyOutcome> RunAsync(string strategyId, string hypothesis, WalkForwardPlan plan, UniverseDefinition universe,
         Func<DateOnly, DateOnly, BacktestConfig> config, GateCriteria criteria, CancellationToken ct = default, bool diagnostic = false,
-        string? fingerprint = null)
+        string? fingerprint = null, bool postHoc = false)
     {
         var code = CodeVersion.Detect();
         // multiple testing: every earlier (non-diagnostic) study of this strategy id counts as variants tried
@@ -105,6 +106,7 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
         await using (var db = runner.DbFactory())
             version = await db.StrategyVersions.Include(v => v.Strategy).SingleAsync(v => v.Id == lastSelectedVersion, ct);
         var gate = PromotionGate.EvaluateValidation(version.Status, evidence, criteria);
+        if (postHoc) gate = PromotionGate.CapPostHoc(gate, version.Status);
         await RecordAsync(study, version, evidence, criteria, gate, hypothesis, plan, diagnostic, ct);
         return new StudyOutcome(study, folds, evidence, gate, version.Id);
     }
@@ -123,12 +125,7 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
         await using var db = runner.DbFactory();
         db.StrategyEvaluations.Add(evaluation);
         var v = await db.StrategyVersions.Include(x => x.Strategy).SingleAsync(x => x.Id == version.Id, ct);
-        if (!diagnostic)
-        {
-            v.Status = gate.To;
-            v.Strategy!.Status = gate.To;
-            v.Strategy.UpdatedAt = now;
-        }
+        if (!diagnostic) v.Status = gate.To;
         if (gate.Decision == GateDecision.Reject && !diagnostic)
         {
             var worst = evidence.ByRegime.Where(r => r.Value.Trades > 0).OrderBy(r => r.Value.NetEvPerTrade).Select(r => $"{r.Key}: EV {r.Value.NetEvPerTrade:P2} ({r.Value.Trades} trades)");
@@ -144,6 +141,7 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
         s.SummaryJson = evaluation.EvidenceJson;
         s.CompletedAt = now;
         await db.SaveChangesAsync(ct);
+        await db.RollupStrategyStatusAsync(v.StrategyId, ct);
     }
 
     /// <summary>Chains OOS folds into one track record (untraded folds are flat) and computes net evidence.</summary>
