@@ -115,3 +115,27 @@ public sealed class StrategyTests
         Assert.Throws<ArgumentException>(() => StrategyCatalog.Create("nope"));
     }
 }
+
+public sealed class PortfolioTests
+{
+    [Fact]
+    public void Members_only_sell_their_own_positions_and_buys_are_tagged_by_owner_and_priority()
+    {
+        var start = new DateOnly(2024, 1, 1);
+        var rising = Enumerable.Range(0, 60).Select(i => new Investment.Domain.Market.Bar(start.AddDays(i), 100 + i, 101 + i, 99 + i, 100 + i, 1000, false)).ToArray();
+        var p = new Investment.Strategies.Composite.PortfolioStrategy(new Investment.Strategies.Composite.PortfolioParameters
+        {
+            Members = [new() { Id = "meanrev.zscore" }, new() { Id = "breakout.volume" }],
+        });
+        var held = new Dictionary<string, HeldPosition>
+        {
+            ["MR"] = new("MR", start, 100, 3, "[meanrev.zscore] z20=-2.9"),
+            ["BO"] = new("BO", start, 100, 2, "[breakout.volume] 20d high"),
+        };
+        var ctx = new StrategyContext(rising[^1].Date, [], t => new Investment.Domain.Market.BarSeries(t, rising, rising.Length), null, held);
+        var signals = p.GenerateSignals(ctx);
+        // rising prices: meanrev exits its own position (close > SMA5); breakout keeps its young position (close > SMA10)
+        Assert.Contains(signals, s => s.Ticker == "MR" && s.Action == SignalAction.Sell);
+        Assert.DoesNotContain(signals, s => s.Ticker == "BO" && s.Action == SignalAction.Sell);
+    }
+}

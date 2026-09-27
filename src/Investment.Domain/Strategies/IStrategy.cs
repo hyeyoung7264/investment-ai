@@ -45,7 +45,8 @@ public interface IStrategy
     IReadOnlyList<Signal> GenerateSignals(StrategyContext context);
 }
 
-public sealed record HeldPosition(string Ticker, DateOnly EntryDate, double EntryPrice, int HoldingSessions);
+/// <summary>A held position as the strategy sees it. EntryReason carries the buy signal's reason (used for ownership tags).</summary>
+public sealed record HeldPosition(string Ticker, DateOnly EntryDate, double EntryPrice, int HoldingSessions, string EntryReason = "");
 
 /// <summary>
 /// Everything a strategy may know at the close of <see cref="AsOf"/>. All series are

@@ -42,3 +42,11 @@ H7 REJECTED (gross +0.33%, net -0.09%: the rebound is not first-day-only) · H8 
 | H10 | meanrev.capitulation (z20 ≤ -2 + volume ≥2x) | A heavy-volume sharp drop (forced selling) reverts more reliably. Captures more signals at the z -2 level at quality comparable to H6 | a-priori (forced-selling/liquidity-provision literature), meanrev family | Positive EV likely, but family variants are high (t threshold ~2.4) |
 | H11 | breakout.volume grid: {60-day high, volume 5x} / {20-day, 5x} | Only stronger information shocks (volume 5x) continue | Refinement of H8 (a-priori grid, 2 variants) | Fewer trades |
 | H12 | H6 + H8 50/50 combined OOS track record (analysis) | Combining low-correlation strategies improves Sharpe and utilization | Analysis (no status change) | — |
+
+### Round 2 results (2026-09-27)
+H10 HOLD (net +1.07%, t=2.14 < 2.45 family threshold) · H11 HOLD (net +0.23%) · H12 analysis: H6–H8 correlation 0.08, H6–H10 0.66. Capital split lowers daily average (0.026–0.031%); full-size combination upper bound 0.056–0.078%.
+
+### Round 3 (recorded before running)
+| ID | Strategy / conditions | Origin | Note |
+|---|---|---|---|
+| H13 | composite.portfolio [meanrev.zscore v4 params > breakout.volume default], shared capital, default risk (10 names×10%, gross ≤100%) | **post-hoc** (members chosen from OOS results) | Gate caps at HOLD. The point is to measure the actual shared-capital daily return |

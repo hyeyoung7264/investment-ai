@@ -305,7 +305,7 @@ public sealed class Simulator
         // ---------- 4. after close: signals for next session ----------
         var universe = _data.Universe.MembersOn(date).Where(tk => IsEnterable(tk, i)).ToList();
         var held = positions.Values.ToDictionary(p => p.Ticker,
-            p => new HeldPosition(p.Ticker, p.EntryDate, (double)p.EntryFill, i - SessionOf(p.EntryDate)), StringComparer.Ordinal);
+            p => new HeldPosition(p.Ticker, p.EntryDate, (double)p.EntryFill, i - SessionOf(p.EntryDate), p.EntryReason), StringComparer.Ordinal);
         var ctx = new StrategyContext(date, universe,
             tk => _tickers.TryGetValue(tk, out var td) ? new BarSeries(tk, td.Bars, td.Visible[i]) : null,
             new BarSeries(_data.IndexCode, _data.Index, VisibleIndex(_data.Index, date)),
