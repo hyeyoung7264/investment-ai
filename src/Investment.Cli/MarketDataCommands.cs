@@ -24,6 +24,19 @@ public static class MarketDataCommands
 
         if (what is "securities" or "all") await svc.SyncSecurityMasterAsync(opt.From, ct);
         if (what is "indices" or "all") await svc.IngestIndicesAsync(opt, ct);
+        if (what is "disclosures")
+        {
+            var key = Investment.MarketData.Dart.DartClient.LoadKey()
+                ?? throw new CliUsageException("OpenDART key missing: set OPENDART_API_KEY or ~/.config/investment-ai/opendart.key");
+            var ing = new Investment.MarketData.Dart.DisclosureIngestion(() => Database.Create(cs), new Investment.MarketData.Dart.DartClient(key), Log);
+            if (!o.Has("reclassify-only"))
+            {
+                var r = await ing.RunAsync(o.GetDate("from", new DateOnly(2016, 1, 1)), opt.To, (o.Get("types") ?? "B,I").Split(','), ct);
+                Log($"disclosures: fetched {r.Fetched}, inserted {r.Inserted}");
+            }
+            Log($"disclosures reclassified: {await ing.ReclassifyAsync(ct)}");
+            return 0;
+        }
         if (what is "splits")
         {
             var r = await new Investment.MarketData.Splits.SplitVerificationService(() => Database.Create(cs), new MarketDataStore(cs),
@@ -37,7 +50,7 @@ public static class MarketDataCommands
             if (run.Status != "ok") Console.Error.WriteLine($"price ingestion finished with status {run.Status}: {run.Notes}");
         }
         if (what is not ("securities" or "indices" or "prices" or "all"))
-            throw new CliUsageException("ingest securities|indices|prices|splits|all");
+            throw new CliUsageException("ingest securities|indices|prices|splits|disclosures|all");
         return 0;
     }
 

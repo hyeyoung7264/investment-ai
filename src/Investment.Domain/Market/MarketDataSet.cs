@@ -17,8 +17,10 @@ public sealed class MarketDataSet
         Bar[] index,
         string indexCode,
         PointInTimeUniverse universe,
-        string source)
+        string source,
+        IReadOnlyDictionary<string, CorporateEvent[]>? events = null)
     {
+        Events = events;
         Calendar = calendar;
         Securities = securities;
         Index = index;
@@ -55,6 +57,9 @@ public sealed class MarketDataSet
     public PointInTimeUniverse Universe { get; }
     public string Source { get; }
 
+    /// <summary>Corporate events per ticker, ascending by date (null when the strategy does not use events).</summary>
+    public IReadOnlyDictionary<string, CorporateEvent[]>? Events { get; }
+
     /// <summary>Per ticker, dates whose bar is not a tradable continuation of the previous bar.</summary>
     public IReadOnlyDictionary<string, IReadOnlySet<DateOnly>> Discontinuities { get; }
 
@@ -78,6 +83,16 @@ public sealed class MarketDataSet
         }
         sb.Append("universe=").Append(Universe.Hash());
         Flush();
+        if (Events is not null)
+        {
+            foreach (var ticker in Events.Keys.Order(StringComparer.Ordinal))
+            {
+                sb.Append("@").Append(ticker).Append('\n');
+                foreach (var e in Events[ticker])
+                    sb.Append(e.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture)).Append(',').Append(e.Type).Append('\n');
+                Flush();
+            }
+        }
         return Convert.ToHexStringLower(sha.GetHashAndReset());
     }
 

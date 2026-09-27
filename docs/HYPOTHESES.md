@@ -53,3 +53,13 @@ H10 HOLD (net +1.07%, t=2.14 < 2.45 family threshold) · H11 HOLD (net +0.23%) �
 
 ### Round 3 results
 H13 HOLD: shared capital **0.049%/day** (highest so far), EV +0.86%/trade (t=2.22), but MDD 27.1%, positive folds 2/6.
+
+## M6 — DART disclosure events (recorded 2026-09-27, before running)
+
+Events use the receipt date (no time) → decision after the close, **entry at the next session's open**. Corrections are not new events.
+
+| ID | Strategy / conditions | Hypothesis | Origin | Note |
+|---|---|---|---|---|
+| H14 | event.buyback (buyback decision filed ≤3 days ago, hold 20 days), universe top 100 | Positive drift after buyback announcement | a-priori (literature) | event family variant 1 |
+| H15 | Same, universe top 300 | Smaller caps have stronger buyback signal / more events | a-priori | family variant 2 |
+| H16 | composite.event-filter(meanrev v4 params, block rights offering/CB/BW within 30 days) | Sharp drops caused by dilution news are information, not overreaction | a-priori idea, but **base parameters were chosen on OOS → post-hoc** | Gate capped at HOLD |

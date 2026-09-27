@@ -48,6 +48,8 @@ public sealed class PortfolioStrategy : IStrategy
 
     public int WarmupBars => _members.Max(m => m.Strategy.WarmupBars);
 
+    public bool UsesCorporateEvents => _members.Any(m => m.Strategy.UsesCorporateEvents);
+
     public IReadOnlyList<Signal> GenerateSignals(StrategyContext ctx)
     {
         var result = new List<Signal>();
@@ -57,7 +59,7 @@ public sealed class PortfolioStrategy : IStrategy
             var (tag, strategy) = _members[k];
             var own = ctx.Positions.Where(p => p.Value.EntryReason.StartsWith(tag, StringComparison.Ordinal))
                 .ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
-            var view = new StrategyContext(ctx.AsOf, ctx.Universe, ctx.History, ctx.MarketIndex, own);
+            var view = ctx.WithPositions(own);
             var priority = (_members.Count - k) * 1_000_000.0;
             foreach (var s in strategy.GenerateSignals(view))
             {

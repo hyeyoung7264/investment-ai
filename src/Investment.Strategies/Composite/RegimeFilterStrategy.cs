@@ -51,6 +51,8 @@ public sealed class RegimeFilterStrategy : IStrategy
 
     public int WarmupBars => _inner.WarmupBars;
 
+    public bool UsesCorporateEvents => _inner.UsesCorporateEvents;
+
     public IReadOnlyList<Signal> GenerateSignals(StrategyContext context)
     {
         var signals = _inner.GenerateSignals(context);

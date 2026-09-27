@@ -13,6 +13,7 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
     public DbSet<IndexPrice> IndexPrices => Set<IndexPrice>();
     public DbSet<IngestionRun> IngestionRuns => Set<IngestionRun>();
     public DbSet<SplitEvent> SplitEvents => Set<SplitEvent>();
+    public DbSet<Disclosure> Disclosures => Set<Disclosure>();
     public DbSet<StrategyDefinition> Strategies => Set<StrategyDefinition>();
     public DbSet<StrategyVersion> StrategyVersions => Set<StrategyVersion>();
     public DbSet<BacktestRun> BacktestRuns => Set<BacktestRun>();
@@ -70,6 +71,24 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
             e.HasKey(x => new { x.Ticker, x.EventDate });
             e.Property(x => x.Ticker).HasMaxLength(12);
             e.Property(x => x.Notes).HasMaxLength(500);
+        });
+
+        b.Entity<Disclosure>(e =>
+        {
+            e.ToTable("disclosures");
+            e.HasKey(x => x.ReceiptNo);
+            e.Property(x => x.ReceiptNo).HasMaxLength(20);
+            e.Property(x => x.CorpCode).HasMaxLength(12);
+            e.Property(x => x.CorpName).HasMaxLength(200);
+            e.Property(x => x.Ticker).HasMaxLength(12);
+            e.Property(x => x.CorpClass).HasMaxLength(2);
+            e.Property(x => x.ReportName).HasMaxLength(500);
+            e.Property(x => x.Filer).HasMaxLength(200);
+            e.Property(x => x.Remark).HasMaxLength(20);
+            e.Property(x => x.DisclosureType).HasMaxLength(2);
+            e.Property(x => x.Event).HasConversion<string>().HasMaxLength(32);
+            e.HasIndex(x => new { x.Ticker, x.ReceiptDate });
+            e.HasIndex(x => new { x.Event, x.ReceiptDate });
         });
 
         b.Entity<IngestionRun>(e =>

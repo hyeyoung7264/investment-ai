@@ -15,7 +15,8 @@ public sealed class DataSetLoader(string connectionString)
     /// <summary>Calendar days of history loaded before the start date for indicator warmup.</summary>
     public const int WarmupCalendarDays = 450;
 
-    public async Task<MarketDataSet> LoadAsync(UniverseDefinition universe, DateOnly start, DateOnly end, string indexCode = "KOSPI", CancellationToken ct = default)
+    public async Task<MarketDataSet> LoadAsync(UniverseDefinition universe, DateOnly start, DateOnly end, string indexCode = "KOSPI",
+        bool includeEvents = false, CancellationToken ct = default)
     {
         var store = new MarketDataStore(connectionString);
         var loadFrom = start.AddDays(-WarmupCalendarDays);
@@ -46,8 +47,24 @@ public sealed class DataSetLoader(string connectionString)
         await foreach (var (ticker, bars) in store.StreamBarsByTickerAsync(loadFrom, end, members, ct))
             memberBars[ticker] = Corrected(ticker, bars).ToArray();
 
+        Dictionary<string, CorporateEvent[]>? events = null;
+        if (includeEvents)
+        {
+            await using var db = Database.Create(connectionString);
+            var tickers = members.ToList();
+            // original filings only: corrections restate an event already known on its first receipt date
+            var rows = await db.Disclosures.AsNoTracking()
+                .Where(d => d.Ticker != null && tickers.Contains(d.Ticker) && !d.IsCorrection && d.Event != DisclosureEvent.Other
+                            && d.ReceiptDate >= loadFrom && d.ReceiptDate <= end)
+                .Select(d => new { d.Ticker, d.ReceiptDate, d.Event, d.ReportName, d.ReceiptNo })
+                .ToListAsync(ct);
+            events = rows.GroupBy(r => r.Ticker!).ToDictionary(g => g.Key,
+                g => g.OrderBy(r => r.ReceiptDate).ThenBy(r => r.ReceiptNo, StringComparer.Ordinal)
+                      .Select(r => new CorporateEvent(r.ReceiptDate, r.Event, r.ReportName)).ToArray());
+        }
+
         return new MarketDataSet(calendar, memberBars,
             securities.Where(kv => members.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value),
-            index.ToArray(), indexCode, pit, "naver-chart+kind");
+            index.ToArray(), indexCode, pit, includeEvents ? "naver-chart+kind+dart" : "naver-chart+kind", events);
     }
 }

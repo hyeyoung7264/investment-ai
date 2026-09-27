@@ -43,6 +43,9 @@ public interface IStrategy
     int WarmupBars { get; }
 
     IReadOnlyList<Signal> GenerateSignals(StrategyContext context);
+
+    /// <summary>True if the strategy reads <see cref="StrategyContext.Events"/> (disclosures are then loaded and hashed).</summary>
+    bool UsesCorporateEvents => false;
 }
 
 /// <summary>A held position as the strategy sees it. EntryReason carries the buy signal's reason (used for ownership tags).</summary>
@@ -57,8 +60,11 @@ public sealed class StrategyContext(
     IReadOnlyList<string> universe,
     Func<string, BarSeries?> history,
     BarSeries? marketIndex,
-    IReadOnlyDictionary<string, HeldPosition> positions)
+    IReadOnlyDictionary<string, HeldPosition> positions,
+    Func<string, IReadOnlyList<CorporateEvent>>? events = null)
 {
+    private readonly Func<string, IReadOnlyList<CorporateEvent>>? _events = events;
+
     public DateOnly AsOf { get; } = asOf;
 
     /// <summary>Tickers eligible for new entries today (point-in-time universe).</summary>
@@ -70,4 +76,21 @@ public sealed class StrategyContext(
 
     /// <summary>History for a ticker, visible only up to <see cref="AsOf"/>; null if no data.</summary>
     public BarSeries? History(string ticker) => history(ticker);
+
+    /// <summary>
+    /// Corporate events of a ticker filed on or before <see cref="AsOf"/> (date-only receipts: usable for decisions
+    /// made after that day's filing window, i.e. next-open entries). Future filings are never returned.
+    /// </summary>
+    public IReadOnlyList<CorporateEvent> Events(string ticker)
+    {
+        if (_events is null) return [];
+        var all = _events(ticker);
+        var n = 0;
+        while (n < all.Count && all[n].Date <= AsOf) n++;
+        return n == all.Count ? all : all.Take(n).ToList();
+    }
+
+    /// <summary>A copy with different positions (composites give each member only its own positions).</summary>
+    public StrategyContext WithPositions(IReadOnlyDictionary<string, HeldPosition> positions) =>
+        new(AsOf, Universe, history, MarketIndex, positions, _events);
 }

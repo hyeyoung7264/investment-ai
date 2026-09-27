@@ -309,7 +309,8 @@ public sealed class Simulator
         var ctx = new StrategyContext(date, universe,
             tk => _tickers.TryGetValue(tk, out var td) ? new BarSeries(tk, td.Bars, td.Visible[i]) : null,
             new BarSeries(_data.IndexCode, _data.Index, VisibleIndex(_data.Index, date)),
-            held);
+            held,
+            _data.Events is { } ev ? tk => ev.TryGetValue(tk, out var list) ? list : [] : null);
         var signals = _strategy.GenerateSignals(ctx);
         _obs.OnSignals(date, signals.Count);
         var regime = RegimeAt(date);
