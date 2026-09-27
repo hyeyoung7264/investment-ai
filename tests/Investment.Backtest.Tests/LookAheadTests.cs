@@ -193,3 +193,50 @@ public sealed class ResultHashTests
         Assert.Equal(Make(100_000_000m).ResultHash(), Make(100_000_000.00m).ResultHash());
     }
 }
+
+public sealed class SimulatorStateTests
+{
+    private sealed class Sink : ISimulationObserver
+    {
+        public List<TradeRecord> Trades { get; } = [];
+        public List<EquityPoint> Equity { get; } = [];
+        public void OnTrade(TradeRecord trade) => Trades.Add(trade);
+        public void OnEquity(EquityPoint point) => Equity.Add(point);
+    }
+
+    [Fact]
+    public void Stepping_with_persisted_state_equals_a_continuous_run()
+    {
+        var m = new TestMarket(160);
+        var rng = new Random(5);
+        foreach (var t in new[] { "A", "B", "C", "D" })
+        {
+            m.Flat(t, 10_000);
+            var p = 10_000.0;
+            for (var i = 0; i < 160; i++)
+            {
+                var o = p * (1 + (rng.NextDouble() - 0.5) * 0.02);
+                var c = o * (1 + (rng.NextDouble() - 0.5) * 0.1);
+                m.Set(t, i, Math.Round(o), Math.Round(Math.Max(o, c) * 1.01), Math.Round(Math.Min(o, c) * 0.99), Math.Round(c));
+                p = c;
+            }
+        }
+        var data = m.Build();
+        var cfg = new BacktestConfig { Start = m.Calendar[20], End = m.Calendar[^1], Risk = new Investment.Risk.RiskLimits { MaxPositions = 3, MaxPositionWeight = 0.3, MaxSectorWeight = 1, MaxParticipation = 1, MaxDrawdown = 0.9, MaxDailyLoss = 0.5 } };
+        var strategy = Investment.Strategies.StrategyCatalog.Create("reversal.st", """{"Lookback":3,"TopK":2,"HoldingSessions":3}""");
+
+        var continuous = new BacktestEngine().Run(strategy, data, cfg);
+
+        // same sessions, but state is serialized and restored into a new simulator every 7 sessions
+        var sink = new Sink();
+        var state = SimulationState.Initial(m.Calendar[20], cfg.InitialCapital);
+        for (var i = 20; i < m.Calendar.Count; i++)
+        {
+            if (i % 7 == 0) state = SimulationState.FromJson(state.ToJson());
+            new Simulator(strategy, data, cfg, state, sink).Step(i, i == m.Calendar.Count - 1);
+        }
+        Assert.True(continuous.Trades.Count > 10);
+        Assert.Equal(continuous.Trades, sink.Trades);
+        Assert.Equal(continuous.Equity, sink.Equity);
+    }
+}
