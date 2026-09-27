@@ -47,6 +47,8 @@ public static class CliApp
                     return await StudyCommands.EvaluationsAsync(opts, ct);
                 case "failures":
                     return await StudyCommands.FailuresAsync(opts, ct);
+                case "agent" when sub == "cycle":
+                    return await AgentCommands.CycleAsync(opts, ct);
                 case "paper":
                     return await PaperCommands.RunAsync(sub, opts, ct);
                 default:
@@ -86,6 +88,9 @@ public static class CliApp
               regime [--index KOSPI]        classify and store daily market regimes
               evaluations [--limit 30]      gate decisions and current strategy statuses
               failures                      rejected experiments (never deleted)
+              agent cycle [--max-studies 3] [--dry-run] [--to date] + backtest options
+                                            research loop: observe evidence, propose (rules / Claude if ANTHROPIC_API_KEY),
+                                            skip duplicates, run walk-forward + gate, write reports/research/cycle-*.md
               paper start --strategy <id> [--version-id guid] [--name] [--start date] + backtest options
                                             open a forward paper session (VALIDATED versions only, no backfill)
               paper daily [--ingest]        (optionally refresh data, then) advance all active paper sessions

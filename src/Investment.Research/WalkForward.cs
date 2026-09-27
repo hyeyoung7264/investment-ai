@@ -55,14 +55,20 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
     /// strategy statuses never change — a sweep of neighbors must not promote anything (multiple testing).
     /// </param>
     public async Task<StudyOutcome> RunAsync(string strategyId, string hypothesis, WalkForwardPlan plan, UniverseDefinition universe,
-        Func<DateOnly, DateOnly, BacktestConfig> config, GateCriteria criteria, CancellationToken ct = default, bool diagnostic = false)
+        Func<DateOnly, DateOnly, BacktestConfig> config, GateCriteria criteria, CancellationToken ct = default, bool diagnostic = false,
+        string? fingerprint = null)
     {
         var code = CodeVersion.Detect();
+        // multiple testing: every earlier (non-diagnostic) study of this strategy id counts as variants tried
+        int priorStudies;
+        await using (var db0 = runner.DbFactory())
+            priorStudies = await db0.ResearchStudies.CountAsync(s => s.StrategyId == strategyId && s.Kind == "walk-forward", ct);
+        var variants = plan.ParameterGrid.Count + (diagnostic ? 0 : priorStudies);
         var study = new ResearchStudy
         {
             Id = Guid.NewGuid(), StrategyId = strategyId, Kind = diagnostic ? "robustness" : "walk-forward", Hypothesis = hypothesis,
-            PlanJson = JsonSerializer.Serialize(new { plan, universe, criteria, sample = config(plan.FirstTrainStart, plan.LastDate) }),
-            VariantsTried = plan.ParameterGrid.Count, CodeCommit = code.Commit, CreatedAt = DateTimeOffset.UtcNow,
+            PlanJson = JsonSerializer.Serialize(new { plan, universe, criteria, sample = config(plan.FirstTrainStart, plan.LastDate), fingerprint, priorStudies }),
+            VariantsTried = variants, CodeCommit = code.Commit, CreatedAt = DateTimeOffset.UtcNow,
         };
         await using (var db = runner.DbFactory()) { db.ResearchStudies.Add(study); await db.SaveChangesAsync(ct); }
 
@@ -94,7 +100,7 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
             _log($"fold {f.Index}: train {f.TrainStart:yyyy}-{f.TrainEnd:yyyy} sharpe {best.Value.Sharpe:F2} | val EV {val.Net.ExpectedValuePerTrade:P3} -> {(traded ? "TRADE" : "flat")} | OOS {f.OosStart:yyyy-MM}..{f.OosEnd:yyyy-MM} net {oos.Net.TotalReturn:P1} EV {oos.Net.ExpectedValuePerTrade:P3}");
         }
 
-        var evidence = Aggregate(folds, data, plan);
+        var evidence = Aggregate(folds, data, plan) with { VariantsTried = variants };
         StrategyVersion version;
         await using (var db = runner.DbFactory())
             version = await db.StrategyVersions.Include(v => v.Strategy).SingleAsync(v => v.Id == lastSelectedVersion, ct);

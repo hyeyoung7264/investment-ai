@@ -15,6 +15,9 @@ public sealed record RegimeFilterParameters
 
     /// <summary>Volatility regimes in which new entries are allowed (null = any).</summary>
     public IReadOnlyList<VolatilityRegime>? AllowedVolatility { get; init; }
+
+    /// <summary>Exact regime labels (e.g. "Bear/LowVol") in which entries are blocked (null = none).</summary>
+    public IReadOnlyList<string>? BlockedRegimes { get; init; }
 }
 
 /// <summary>
@@ -43,6 +46,7 @@ public sealed class RegimeFilterStrategy : IStrategy
             InnerLogicVersion = _inner.Descriptor.LogicVersion,
             _p.AllowedTrends,
             _p.AllowedVolatility,
+            _p.BlockedRegimes,
         });
 
     public int WarmupBars => _inner.WarmupBars;
@@ -52,7 +56,8 @@ public sealed class RegimeFilterStrategy : IStrategy
         var signals = _inner.GenerateSignals(context);
         var regime = context.MarketIndex is { } idx ? RegimeClassifier.Classify(idx) : null;
         var allowed = regime is { } r && _p.AllowedTrends.Contains(r.Trend) &&
-                      (_p.AllowedVolatility is null || _p.AllowedVolatility.Contains(r.Volatility));
+                      (_p.AllowedVolatility is null || _p.AllowedVolatility.Contains(r.Volatility)) &&
+                      (_p.BlockedRegimes is null || !_p.BlockedRegimes.Contains(r.ToString()));
         if (allowed) return signals.Select(s => s.Action == SignalAction.Buy ? s with { Reason = $"{s.Reason} | regime {regime}" } : s).ToList();
         return signals.Where(s => s.Action != SignalAction.Buy).ToList();
     }

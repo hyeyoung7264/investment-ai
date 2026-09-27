@@ -151,3 +151,28 @@ public static class StudyCommands
 
     private static void Log(string msg) => Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {msg}");
 }
+
+public static class AgentCommands
+{
+    public static async Task<int> CycleAsync(CliOptions o, CancellationToken ct)
+    {
+        var cs = Database.ConnectionString(o.Get("db"));
+        var runner = new BacktestRunner(cs, Log);
+        var generators = new List<Investment.Research.Agent.IHypothesisGenerator> { new Investment.Research.Agent.RuleBasedGenerator() };
+        if (Investment.Research.Agent.LlmHypothesisGenerator.FromEnvironment() is { } llm) generators.Add(llm);
+        else Log("LLM generator disabled (ANTHROPIC_API_KEY not set); using rule-based proposals only");
+        var agent = new Investment.Research.Agent.ResearchAgent(runner, generators, Log);
+        var plan = new WalkForwardPlan { FirstTrainStart = o.GetDate("from", new DateOnly(2017, 1, 1)), LastDate = o.GetDate("to", DateOnly.FromDateTime(DateTime.Today)) };
+        var result = await agent.RunCycleAsync(plan, ResearchCommands.Universe(o), (s, e) => ResearchCommands.Config(o, s, e),
+            o.GetInt("max-studies", 3), o.Has("dry-run"), Path.Combine("reports", "research"), ct);
+        Console.WriteLine($"proposed {result.Proposed.Count}, executed {result.Executed.Count}, skipped {result.Skipped.Count}");
+        foreach (var (p, outcome) in result.Executed)
+            Console.WriteLine($"  {p.StrategyId} [{p.Origin}] -> {outcome.Gate.Decision}: {string.Join("; ", outcome.Gate.Reasons)}");
+        foreach (var (p, why) in result.Skipped)
+            Console.WriteLine($"  skipped {p.StrategyId} [{p.Origin}]: {why}");
+        Console.WriteLine($"report: {result.ReportPath}");
+        return 0;
+    }
+
+    private static void Log(string msg) => Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] {msg}");
+}
