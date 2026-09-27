@@ -29,7 +29,7 @@ public sealed record RiskLimits
     public double? TakeProfit { get; init; }
 
     /// <summary>Forced exit after this many sessions held (null = none).</summary>
-    public int? MaxHoldingSessions { get; init; } = 20;
+    public int? MaxHoldingSessions { get; init; }
 
     /// <summary>Order value may not exceed this fraction of the 20-session median trading value.</summary>
     public double MaxParticipation { get; init; } = 0.05;
