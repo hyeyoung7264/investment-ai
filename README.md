@@ -38,4 +38,4 @@ dotnet run --project src/Investment.Cli -- paper status        # scripts/paper-d
 dotnet run --project src/Investment.Cli -- evaluations | failures | runs
 ```
 
-Documents: [M1 plan](docs/M1-PLAN.md) · [data quality](docs/DATA-QUALITY.md) · [M1 results](docs/M1-REPORT.md) · [hypotheses](docs/HYPOTHESES.md) · [M2–M4 results](docs/M2-M4-REPORT.md)
+Documents: [M1 plan](docs/M1-PLAN.md) · [data quality](docs/DATA-QUALITY.md) · [M1 results](docs/M1-REPORT.md) · [hypotheses](docs/HYPOTHESES.md) · [M2–M4 results](docs/M2-M4-REPORT.md) · [M5 +1% search](docs/M5-REPORT.md)
