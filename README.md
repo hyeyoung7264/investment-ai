@@ -23,7 +23,6 @@ dotnet test
 | Investment.Risk | Risk Engine |
 | Investment.Backtest | Simulator, cost model, metrics |
 | Investment.Cli | Entry point |
-
 | Investment.Research | Walk-forward, Promotion Gate, regimes, Research Agent |
 | Investment.PaperTrading | Forward paper trading (same simulator as backtest) |
 
