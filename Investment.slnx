@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Investment.Backtest/Investment.Backtest.csproj" />
+    <Project Path="src/Investment.Cli/Investment.Cli.csproj" />
+    <Project Path="src/Investment.Domain/Investment.Domain.csproj" />
+    <Project Path="src/Investment.MarketData/Investment.MarketData.csproj" />
+    <Project Path="src/Investment.Persistence/Investment.Persistence.csproj" />
+    <Project Path="src/Investment.Risk/Investment.Risk.csproj" />
+    <Project Path="src/Investment.Strategies/Investment.Strategies.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Investment.Backtest.Tests/Investment.Backtest.Tests.csproj" />
+    <Project Path="tests/Investment.Integration.Tests/Investment.Integration.Tests.csproj" />
+    <Project Path="tests/Investment.MarketData.Tests/Investment.MarketData.Tests.csproj" />
+    <Project Path="tests/Investment.Strategies.Tests/Investment.Strategies.Tests.csproj" />
+  </Folder>
+</Solution>
