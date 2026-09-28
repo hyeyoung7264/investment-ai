@@ -66,3 +66,12 @@ Events use the receipt date (no time) → decision after the close, **entry at t
 
 ### M6 results (2026-09-27)
 H14 HOLD (47 trades, EV +2.12%, t=0.66) · H15 HOLD (163 trades, EV +1.80%, t=1.24 < 1.96, 4/5 traded folds positive, 0.021%/day) · H16 HOLD by post-hoc cap (EV +1.10%, t=3.05, 0.038%/day; slightly better than fixed-parameter H6 1.03%).
+
+## M7 — post-earnings drift PEAD (recorded 2026-09-29, before running)
+
+Event date = periodic report receipt date (the day the figures became public; if preliminary earnings came earlier, only the remaining drift is captured). SUE = (quarterly OI − same quarter last year) / std of that change over up to 8 prior quarters **filed earlier**. Late amendments are excluded.
+
+| ID | Strategy / conditions | Hypothesis | Origin | Note |
+|---|---|---|---|---|
+| H17 | event.pead SUE≥2, grid holding {20, 60} days, universe top 300 | Under-reaction to large positive surprises → drift | a-priori (PEAD literature) | event family cumulative → t threshold ~2.24 |
+| H18 | Same, universe top 100 | Is the drift present in large caps too | a-priori | t threshold ~2.33 |
