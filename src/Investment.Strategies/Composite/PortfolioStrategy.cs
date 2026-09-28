@@ -8,6 +8,9 @@ public sealed record PortfolioMember
 {
     public required string Id { get; init; }
     public JsonObject? Parameters { get; init; }
+
+    /// <summary>Optional: the member only sees the N most liquid universe names (60-session median trading value).</summary>
+    public int? MaxLiquidityRank { get; init; }
 }
 
 public sealed record PortfolioParameters
@@ -26,12 +29,14 @@ public sealed class PortfolioStrategy : IStrategy
     public const string Id = "composite.portfolio";
     private readonly List<(string Tag, IStrategy Strategy)> _members;
     private readonly PortfolioParameters _p;
+    private readonly List<int?> _ranks;
 
     public PortfolioStrategy(PortfolioParameters? parameters = null)
     {
         _p = parameters ?? new PortfolioParameters();
         if (_p.Members.Count == 0) throw new ArgumentException("portfolio needs at least one member");
         _members = _p.Members.Select(m => ($"[{m.Id}]", StrategyCatalog.Create(m.Id, m.Parameters?.ToJsonString()))).ToList();
+        _ranks = _p.Members.Select(m => m.MaxLiquidityRank).ToList();
     }
 
     public StrategyDescriptor Descriptor => new(Id, "Shared-capital portfolio", "Composite", 1,
@@ -44,6 +49,7 @@ public sealed class PortfolioStrategy : IStrategy
                 Parameters = JsonDocument.Parse(m.Strategy.Descriptor.ParametersJson).RootElement,
                 m.Strategy.Descriptor.LogicVersion,
             }),
+            MaxLiquidityRanks = _p.Members.Select(m => m.MaxLiquidityRank),
         });
 
     public bool UsesFundamentals => _members.Any(m => m.Strategy.UsesFundamentals);
@@ -56,12 +62,19 @@ public sealed class PortfolioStrategy : IStrategy
     {
         var result = new List<Signal>();
         var claimed = new HashSet<string>(StringComparer.Ordinal);
+        List<string>? byLiquidity = null;
+        if (_ranks.Any(r => r is not null))
+            byLiquidity = ctx.Universe
+                .Select(t => (t, h: ctx.History(t)))
+                .Select(x => (x.t, v: x.h is { Count: >= 60 } h ? Indicators.MedianTradingValue(h, 60) : 0))
+                .OrderByDescending(x => x.v).ThenBy(x => x.t, StringComparer.Ordinal).Select(x => x.t).ToList();
         for (var k = 0; k < _members.Count; k++)
         {
             var (tag, strategy) = _members[k];
             var own = ctx.Positions.Where(p => p.Value.EntryReason.StartsWith(tag, StringComparison.Ordinal))
                 .ToDictionary(p => p.Key, p => p.Value, StringComparer.Ordinal);
             var view = ctx.WithPositions(own);
+            if (_ranks[k] is { } maxRank && byLiquidity is not null) view = view.WithUniverse(byLiquidity.Take(maxRank).ToList());
             var priority = (_members.Count - k) * 1_000_000.0;
             foreach (var s in strategy.GenerateSignals(view))
             {

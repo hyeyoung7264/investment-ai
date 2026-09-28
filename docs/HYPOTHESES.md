@@ -87,3 +87,5 @@ Background: since Nextrade (2025-03), ~2% of Naver prices differ from KRX offici
 |---|---|---|---|---|
 | H19 | value.ey (TTM operating income / market cap top 10, monthly rebalance, sell below rank 30), universe top 300, grid TrendFilter {off, on} | Value premium; low turnover suits idle capital | a-priori (value premium literature, Faber trend filter) | new family, 2 variants → t 1.96 |
 | H20 | composite.portfolio [H6 params (members limited to liquidity top 100) > value.ey (H19 selected variant)], universe top 300, shared capital | Filling H6's idle capital with value raises daily return | **post-hoc** (H6 base) | Gate capped at HOLD. The point is measuring actual daily return |
+
+H20 details (fixed before running): value.ey member = final-fold selection of H19 (TrendFilter=false) with **TopK 7** (≈70% capital) so H6 keeps ~30% capacity; H6 member limited to liquidity top 100; risk MaxPositions 12, weight 10%, gross ≤100%.

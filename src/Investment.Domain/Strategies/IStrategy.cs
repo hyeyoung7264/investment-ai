@@ -116,6 +116,10 @@ public sealed class StrategyContext(
         return new FundamentalSnapshot(ttmOi, ttmRev, cap, known.Count);
     }
 
+    /// <summary>A copy with a narrower universe (composites can restrict members).</summary>
+    public StrategyContext WithUniverse(IReadOnlyList<string> universe) =>
+        new(AsOf, universe, history, MarketIndex, Positions, _events, _fundamentals);
+
     /// <summary>A copy with different positions (composites give each member only its own positions).</summary>
     public StrategyContext WithPositions(IReadOnlyDictionary<string, HeldPosition> positions) =>
         new(AsOf, Universe, history, MarketIndex, positions, _events, _fundamentals);
