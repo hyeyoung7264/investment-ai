@@ -58,9 +58,18 @@ public sealed class DataSetLoader(string connectionString)
                             && d.ReceiptDate >= loadFrom && d.ReceiptDate <= end)
                 .Select(d => new { d.Ticker, d.ReceiptDate, d.Event, d.ReportName, d.ReceiptNo })
                 .ToListAsync(ct);
-            events = rows.GroupBy(r => r.Ticker!).ToDictionary(g => g.Key,
-                g => g.OrderBy(r => r.ReceiptDate).ThenBy(r => r.ReceiptNo, StringComparer.Ordinal)
-                      .Select(r => new CorporateEvent(r.ReceiptDate, r.Event, r.ReportName)).ToArray());
+            var all = rows.Select(r => (r.Ticker!, r.ReceiptNo, new CorporateEvent(r.ReceiptDate, r.Event, r.ReportName))).ToList();
+
+            // earnings reports with point-in-time SUE (only timely filings: amendments years later are not news)
+            var lines = await db.FinancialReportLines.AsNoTracking().Where(l => l.Ticker != null && tickers.Contains(l.Ticker)).ToListAsync(ct);
+            foreach (var (q, sue) in Investment.MarketData.Dart.EarningsCalculator.Surprises(Investment.MarketData.Dart.EarningsCalculator.Quarters(lines)))
+            {
+                if (q.ReceiptDate < loadFrom || q.ReceiptDate > end || !Investment.MarketData.Dart.EarningsCalculator.IsTimely(q)) continue;
+                all.Add((q.Ticker, $"FIN{q.FiscalYear}Q{q.Quarter}", new CorporateEvent(q.ReceiptDate, DisclosureEvent.EarningsReport,
+                    $"{q.FiscalYear}Q{q.Quarter} OI {q.OperatingIncome:N0} vs {q.PriorOperatingIncome:N0} ({q.FsDiv})", sue)));
+            }
+            events = all.GroupBy(r => r.Item1).ToDictionary(g => g.Key,
+                g => g.OrderBy(r => r.Item3.Date).ThenBy(r => r.Item2, StringComparer.Ordinal).Select(r => r.Item3).ToArray());
         }
 
         return new MarketDataSet(calendar, memberBars,

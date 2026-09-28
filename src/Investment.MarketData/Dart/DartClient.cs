@@ -103,4 +103,80 @@ public sealed class DartClient(string apiKey, HttpClient? http = null)
         }
         return (list, root.GetProperty("total_page").GetInt32());
     }
+
+    /// <summary>All DART corp codes with their (current or last) stock code. Delisted companies keep theirs.</summary>
+    public async Task<IReadOnlyDictionary<string, string>> GetCorpCodesByTickerAsync(CancellationToken ct)
+    {
+        var bytes = await Http.RetryAsync(() => _http.GetByteArrayAsync(
+            "https://opendart.fss.or.kr/api/corpCode.xml?crtfc_key=" + Uri.EscapeDataString(apiKey), ct), ct);
+        using var zip = new System.IO.Compression.ZipArchive(new MemoryStream(bytes));
+        await using var stream = zip.Entries[0].Open();
+        var doc = await System.Xml.Linq.XDocument.LoadAsync(stream, System.Xml.Linq.LoadOptions.None, ct);
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var e in doc.Descendants("list"))
+        {
+            var stock = e.Element("stock_code")?.Value.Trim();
+            if (string.IsNullOrEmpty(stock)) continue;
+            map[stock] = e.Element("corp_code")!.Value.Trim(); // later entries win (re-registrations)
+        }
+        return map;
+    }
+
+    /// <summary>Key accounts (revenue, operating income, net income) for up to 100 companies of one periodic report.</summary>
+    public async Task<IReadOnlyList<FinancialReportLine>> GetKeyAccountsAsync(IReadOnlyList<string> corpCodes, int year, string reportCode, CancellationToken ct)
+    {
+        if (corpCodes.Count is 0 or > 100) throw new ArgumentException("1..100 corp codes per call");
+        var url = "https://opendart.fss.or.kr/api/fnlttMultiAcnt.json?crtfc_key=" + Uri.EscapeDataString(apiKey) +
+                  $"&corp_code={string.Join(',', corpCodes)}&bsns_year={year}&reprt_code={reportCode}";
+        var json = await Http.RetryAsync(async () =>
+        {
+            using var resp = await _http.GetAsync(url, ct);
+            if ((int)resp.StatusCode >= 500) throw new HttpRequestException($"DART HTTP {(int)resp.StatusCode}");
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadAsStringAsync(ct);
+        }, ct);
+        return ParseKeyAccounts(json);
+    }
+
+    private static readonly Dictionary<string, string> Accounts = new()
+    {
+        ["매출액"] = "Revenue", ["수익(매출액)"] = "Revenue", ["영업수익"] = "Revenue",
+        ["영업이익"] = "OperatingIncome", ["영업이익(손실)"] = "OperatingIncome",
+        ["당기순이익"] = "NetIncome", ["당기순이익(손실)"] = "NetIncome",
+    };
+
+    public static IReadOnlyList<FinancialReportLine> ParseKeyAccounts(string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var status = root.GetProperty("status").GetString()!;
+        if (status == "013") return [];
+        if (status != "000") throw new DartException(status, root.GetProperty("message").GetString() ?? "");
+        var result = new Dictionary<(string, string, string), FinancialReportLine>();
+        foreach (var x in root.GetProperty("list").EnumerateArray())
+        {
+            if (!Accounts.TryGetValue(Str(x, "account_nm")?.Replace(" ", "") ?? "", out var account)) continue;
+            var rcept = Str(x, "rcept_no")!;
+            var line = new FinancialReportLine
+            {
+                CorpCode = Str(x, "corp_code")!, Ticker = Str(x, "stock_code") is { Length: > 0 } t ? t.Trim() : null,
+                FiscalYear = int.Parse(Str(x, "bsns_year")!, CultureInfo.InvariantCulture), ReportCode = Str(x, "reprt_code")!,
+                FsDiv = Str(x, "fs_div")!, Account = account,
+                ThisAmount = Amount(x, "thstrm_amount"), ThisCumulative = Amount(x, "thstrm_add_amount"),
+                PriorAmount = Amount(x, "frmtrm_amount"), PriorCumulative = Amount(x, "frmtrm_add_amount"),
+                ReceiptNo = rcept,
+                ReceiptDate = DateOnly.ParseExact(rcept[..8], "yyyyMMdd", CultureInfo.InvariantCulture),
+            };
+            result.TryAdd((line.CorpCode, line.FsDiv, line.Account), line); // first occurrence = income statement line
+        }
+        return result.Values.ToList();
+    }
+
+    private static string? Str(JsonElement x, string name) => x.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    private static decimal? Amount(JsonElement x, string name)
+    {
+        var s = Str(x, name)?.Replace(",", "").Trim();
+        return string.IsNullOrEmpty(s) || s == "-" ? null : decimal.TryParse(s, NumberStyles.Number, CultureInfo.InvariantCulture, out var v) ? v : null;
+    }
 }

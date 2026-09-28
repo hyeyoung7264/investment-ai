@@ -89,7 +89,11 @@ public sealed class MarketDataSet
             {
                 sb.Append("@").Append(ticker).Append('\n');
                 foreach (var e in Events[ticker])
-                    sb.Append(e.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture)).Append(',').Append(e.Type).Append('\n');
+                {
+                    sb.Append(e.Date.ToString("yyyyMMdd", CultureInfo.InvariantCulture)).Append(',').Append(e.Type);
+                    if (e.Value is { } v) sb.Append(',').Append(v.ToString("R", CultureInfo.InvariantCulture));
+                    sb.Append('\n');
+                }
                 Flush();
             }
         }

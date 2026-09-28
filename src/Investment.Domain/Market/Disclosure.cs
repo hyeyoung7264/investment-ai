@@ -18,6 +18,9 @@ public enum DisclosureEvent
     Merger = 40,
     Split = 41,
     LargestShareholderChange = 42,
+
+    /// <summary>Periodic report with key accounts; Value = standardized unexpected operating income (SUE).</summary>
+    EarningsReport = 50,
 }
 
 /// <summary>
@@ -41,5 +44,5 @@ public sealed class Disclosure
     public DateTimeOffset IngestedAt { get; set; }
 }
 
-/// <summary>Point-in-time event as strategies see it.</summary>
-public readonly record struct CorporateEvent(DateOnly Date, DisclosureEvent Type, string Title);
+/// <summary>Point-in-time event as strategies see it. Value carries an event-specific number (e.g. SUE) when present.</summary>
+public readonly record struct CorporateEvent(DateOnly Date, DisclosureEvent Type, string Title, double? Value = null);

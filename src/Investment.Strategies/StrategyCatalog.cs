@@ -24,6 +24,7 @@ public static class StrategyCatalog
         [IntradayReboundStrategy.Id] = json => new IntradayReboundStrategy(Parse<IntradayReboundParameters>(json)),
         [CapitulationStrategy.Id] = json => new CapitulationStrategy(Parse<CapitulationParameters>(json)),
         [VolumeBreakoutStrategy.Id] = json => new VolumeBreakoutStrategy(Parse<VolumeBreakoutParameters>(json)),
+        [EarningsDriftStrategy.Id] = json => new EarningsDriftStrategy(Parse<EarningsDriftParameters>(json)),
         [BuybackStrategy.Id] = json => new BuybackStrategy(Parse<BuybackParameters>(json)),
         [EventFilterStrategy.Id] = json => new EventFilterStrategy(Parse<EventFilterParameters>(json)),
         [PortfolioStrategy.Id] = json => new PortfolioStrategy(Parse<PortfolioParameters>(json)),

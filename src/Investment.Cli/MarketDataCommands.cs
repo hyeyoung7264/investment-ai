@@ -37,6 +37,14 @@ public static class MarketDataCommands
             Log($"disclosures reclassified: {await ing.ReclassifyAsync(ct)}");
             return 0;
         }
+        if (what is "financials")
+        {
+            var key = Investment.MarketData.Dart.DartClient.LoadKey()
+                ?? throw new CliUsageException("OpenDART key missing: set OPENDART_API_KEY or ~/.config/investment-ai/opendart.key");
+            await new Investment.MarketData.Dart.FinancialsIngestion(() => Database.Create(cs), new Investment.MarketData.Dart.DartClient(key), Log)
+                .RunAsync(o.GetInt("from-year", 2015), o.GetInt("to-year", DateTime.Today.Year), ct);
+            return 0;
+        }
         if (what is "splits")
         {
             var r = await new Investment.MarketData.Splits.SplitVerificationService(() => Database.Create(cs), new MarketDataStore(cs),
@@ -50,7 +58,7 @@ public static class MarketDataCommands
             if (run.Status != "ok") Console.Error.WriteLine($"price ingestion finished with status {run.Status}: {run.Notes}");
         }
         if (what is not ("securities" or "indices" or "prices" or "all"))
-            throw new CliUsageException("ingest securities|indices|prices|splits|disclosures|all");
+            throw new CliUsageException("ingest securities|indices|prices|splits|disclosures|financials|all");
         return 0;
     }
 

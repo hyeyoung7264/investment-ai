@@ -14,6 +14,7 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
     public DbSet<IngestionRun> IngestionRuns => Set<IngestionRun>();
     public DbSet<SplitEvent> SplitEvents => Set<SplitEvent>();
     public DbSet<Disclosure> Disclosures => Set<Disclosure>();
+    public DbSet<FinancialReportLine> FinancialReportLines => Set<FinancialReportLine>();
     public DbSet<StrategyDefinition> Strategies => Set<StrategyDefinition>();
     public DbSet<StrategyVersion> StrategyVersions => Set<StrategyVersion>();
     public DbSet<BacktestRun> BacktestRuns => Set<BacktestRun>();
@@ -89,6 +90,21 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
             e.Property(x => x.Event).HasConversion<string>().HasMaxLength(32);
             e.HasIndex(x => new { x.Ticker, x.ReceiptDate });
             e.HasIndex(x => new { x.Event, x.ReceiptDate });
+        });
+
+        b.Entity<FinancialReportLine>(e =>
+        {
+            e.ToTable("financial_report_lines");
+            e.HasKey(x => new { x.CorpCode, x.FiscalYear, x.ReportCode, x.FsDiv, x.Account });
+            e.Property(x => x.CorpCode).HasMaxLength(12);
+            e.Property(x => x.Ticker).HasMaxLength(12);
+            e.Property(x => x.ReportCode).HasMaxLength(8);
+            e.Property(x => x.FsDiv).HasMaxLength(4);
+            e.Property(x => x.Account).HasMaxLength(32);
+            e.Property(x => x.ReceiptNo).HasMaxLength(20);
+            foreach (var p in new[] { nameof(FinancialReportLine.ThisAmount), nameof(FinancialReportLine.ThisCumulative), nameof(FinancialReportLine.PriorAmount), nameof(FinancialReportLine.PriorCumulative) })
+                e.Property(p).HasPrecision(24, 0);
+            e.HasIndex(x => new { x.Ticker, x.ReceiptDate });
         });
 
         b.Entity<IngestionRun>(e =>
