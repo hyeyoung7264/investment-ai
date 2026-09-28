@@ -89,3 +89,6 @@ Background: since Nextrade (2025-03), ~2% of Naver prices differ from KRX offici
 | H20 | composite.portfolio [H6 params (members limited to liquidity top 100) > value.ey (H19 selected variant)], universe top 300, shared capital | Filling H6's idle capital with value raises daily return | **post-hoc** (H6 base) | Gate capped at HOLD. The point is measuring actual daily return |
 
 H20 details (fixed before running): value.ey member = final-fold selection of H19 (TrendFilter=false) with **TopK 7** (≈70% capital) so H6 keeps ~30% capacity; H6 member limited to liquidity top 100; risk MaxPositions 12, weight 10%, gross ≤100%.
+
+### M8 results (2026-09-29)
+H19 HOLD: value.ey top 300 (KRX) **0.041%/day**, EV +7.24%/trade (t=2.01 ≥ 1.96), Sharpe 0.67, MDD 18.5% — only 79 trades < 100 minimum (criterion not changed after the fact) · H20 REJECTED: MDD 41.3%, 0.036%/day (value without trend filter buying through the 2022 bear) · H20b (diagnostic, post-hoc, info only): trend-filtered combination 0.046%/day, MDD 23.2% — no breakthrough.

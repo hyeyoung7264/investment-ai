@@ -53,3 +53,21 @@ Further re-testing on the same daily-bar data risks becoming data mining. What c
 Interpretation: disclosure events give **large per-trade edges but few events**, so their contribution to daily return is small. The overall best remains 0.049%/day (H13).
 
 Next candidates: (1) earnings surprise (PEAD) — DART multi-company key accounts API (`fnlttMultiAcnt`, 100 companies per call) to compute YoY operating income surprise, event date = filing date; (2) type I exchange disclosures (supply contracts, preliminary earnings) — ingest takes about 2–3 hours; (3) a shared-capital combination of buybacks and H16.
+
+## M7–M8 — earnings, official KRX data, idle capital (2026-09-29)
+
+**Data**
+- DART key accounts: 505,270 rows, 2,831 companies (2015–2026, including delisted).
+- KRX Open API: 6.86M rows (2015–2026) — actual trading value, market cap, listed shares.
+- **Integrity finding**: since Nextrade (2025-03), ~2% of Naver daily prices differ from KRX official (both in the liquid top 100 and overall). KRX base-price adjustment brought discontinuities 82 → 17 and OHLC errors 1,147 → 0. Paper session switched to KRX (no positions at the time of the switch); runs mornings because KRX publishes T+1.
+- H6 re-check on KRX official data: EV +1.33%/trade (t=3.27), MDD 8.3% — **holds**.
+
+| ID | Idea | Daily avg | EV/trade (t) | MDD | Verdict |
+|---|---|---|---|---|---|
+| H17 | PEAD SUE≥2 (filing date), top 300 | 0.014% | +1.61% (0.64) | 30.9% | REJECTED |
+| H18 | Same, top 100 | −0.018% | −1.85% | 42.7% | REJECTED |
+| H19 | Earnings-yield value (monthly), top 300 | **0.041%** | +7.24% (2.01) | 18.5% | HOLD (79 trades < 100) |
+| H20 | H6 + value (no trend filter), shared capital | 0.036% | +1.31% (1.65) | 41.3% | REJECTED |
+| H20b | Same + trend filter (diagnostic, info only) | 0.046% | +1.08% (2.22) | 23.2% | — |
+
+Conclusion: H6 uses only 13.5% of capital, so filling idle capital with value is the right direction, but legitimate combinations still **plateau at 0.04–0.05%/day** (~20x short of +1%).
