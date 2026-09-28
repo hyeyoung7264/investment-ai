@@ -66,6 +66,46 @@ public sealed class MarketDataStore(string connectionString)
         return result;
     }
 
+    public async Task UpsertKrxDailyAsync(IReadOnlyCollection<KrxDaily> rows, CancellationToken ct = default)
+    {
+        if (rows.Count == 0) return;
+        await using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        await using (var cmd = new NpgsqlCommand("CREATE TEMP TABLE tmp_krx (LIKE krx_daily INCLUDING DEFAULTS) ON COMMIT DROP", conn, tx))
+            await cmd.ExecuteNonQueryAsync(ct);
+        await using (var w = await conn.BeginBinaryImportAsync(
+            "COPY tmp_krx (ticker, date, market, open, high, low, close, change_from_previous, volume, trading_value, market_cap, listed_shares) FROM STDIN (FORMAT BINARY)", ct))
+        {
+            foreach (var r in rows)
+            {
+                await w.StartRowAsync(ct);
+                await w.WriteAsync(r.Ticker, NpgsqlDbType.Varchar, ct);
+                await w.WriteAsync(r.Date, NpgsqlDbType.Date, ct);
+                await w.WriteAsync(r.Market, NpgsqlDbType.Varchar, ct);
+                await w.WriteAsync(r.Open, NpgsqlDbType.Numeric, ct);
+                await w.WriteAsync(r.High, NpgsqlDbType.Numeric, ct);
+                await w.WriteAsync(r.Low, NpgsqlDbType.Numeric, ct);
+                await w.WriteAsync(r.Close, NpgsqlDbType.Numeric, ct);
+                await w.WriteAsync(r.ChangeFromPrevious, NpgsqlDbType.Numeric, ct);
+                await w.WriteAsync(r.Volume, NpgsqlDbType.Bigint, ct);
+                await w.WriteAsync(r.TradingValue, NpgsqlDbType.Numeric, ct);
+                await w.WriteAsync(r.MarketCap, NpgsqlDbType.Numeric, ct);
+                await w.WriteAsync(r.ListedShares, NpgsqlDbType.Bigint, ct);
+            }
+            await w.CompleteAsync(ct);
+        }
+        await using (var cmd = new NpgsqlCommand("""
+            INSERT INTO krx_daily (ticker, date, market, open, high, low, close, change_from_previous, volume, trading_value, market_cap, listed_shares)
+            SELECT ticker, date, market, open, high, low, close, change_from_previous, volume, trading_value, market_cap, listed_shares FROM tmp_krx
+            ON CONFLICT (ticker, date) DO UPDATE SET market = EXCLUDED.market, open = EXCLUDED.open, high = EXCLUDED.high,
+              low = EXCLUDED.low, close = EXCLUDED.close, change_from_previous = EXCLUDED.change_from_previous, volume = EXCLUDED.volume, trading_value = EXCLUDED.trading_value,
+              market_cap = EXCLUDED.market_cap, listed_shares = EXCLUDED.listed_shares
+            """, conn, tx))
+            await cmd.ExecuteNonQueryAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
     /// <summary>Removes stored rows for a ticker that the source no longer reports inside [from, to].</summary>
     public async Task<int> DeleteMissingAsync(string ticker, DateOnly from, DateOnly to, IReadOnlyCollection<DateOnly> keep, CancellationToken ct = default)
     {
@@ -140,6 +180,37 @@ public sealed class MarketDataStore(string connectionString)
                 rd.GetInt64(6), rd.GetBoolean(7)));
         }
         if (current is not null) yield return (current, bars);
+    }
+
+    /// <summary>Streams official KRX records grouped by ticker (ascending ticker, then date).</summary>
+    public async IAsyncEnumerable<(string Ticker, List<KrxDaily> Rows)> StreamKrxByTickerAsync(
+        DateOnly from, DateOnly to, IReadOnlyCollection<string>? tickers = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        await using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+        var sql = "SELECT ticker, date, market, open, high, low, close, change_from_previous, volume, trading_value, market_cap, listed_shares FROM krx_daily WHERE date BETWEEN @f AND @t"
+                  + (tickers is null ? "" : " AND ticker = ANY(@tk)") + " ORDER BY ticker, date";
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("f", from);
+        cmd.Parameters.AddWithValue("t", to);
+        if (tickers is not null) cmd.Parameters.AddWithValue("tk", tickers.ToArray());
+        await using var rd = await cmd.ExecuteReaderAsync(ct);
+        string? current = null;
+        var rows = new List<KrxDaily>();
+        while (await rd.ReadAsync(ct))
+        {
+            var t = rd.GetString(0);
+            if (current is not null && t != current) { yield return (current, rows); rows = []; }
+            current = t;
+            rows.Add(new KrxDaily
+            {
+                Ticker = t, Date = rd.GetFieldValue<DateOnly>(1), Market = rd.GetString(2), Open = rd.GetDecimal(3), High = rd.GetDecimal(4),
+                Low = rd.GetDecimal(5), Close = rd.GetDecimal(6), ChangeFromPrevious = rd.GetDecimal(7), Volume = rd.GetInt64(8),
+                TradingValue = rd.GetDecimal(9), MarketCap = rd.GetDecimal(10), ListedShares = rd.GetInt64(11),
+            });
+        }
+        if (current is not null) yield return (current, rows);
     }
 
     public async Task<List<Bar>> LoadIndexAsync(string indexCode, DateOnly from, DateOnly to, CancellationToken ct = default)

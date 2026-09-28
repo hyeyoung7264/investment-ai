@@ -15,6 +15,7 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
     public DbSet<SplitEvent> SplitEvents => Set<SplitEvent>();
     public DbSet<Disclosure> Disclosures => Set<Disclosure>();
     public DbSet<FinancialReportLine> FinancialReportLines => Set<FinancialReportLine>();
+    public DbSet<KrxDaily> KrxDailyRows => Set<KrxDaily>();
     public DbSet<StrategyDefinition> Strategies => Set<StrategyDefinition>();
     public DbSet<StrategyVersion> StrategyVersions => Set<StrategyVersion>();
     public DbSet<BacktestRun> BacktestRuns => Set<BacktestRun>();
@@ -105,6 +106,19 @@ public sealed class InvestmentDbContext(DbContextOptions<InvestmentDbContext> op
             foreach (var p in new[] { nameof(FinancialReportLine.ThisAmount), nameof(FinancialReportLine.ThisCumulative), nameof(FinancialReportLine.PriorAmount), nameof(FinancialReportLine.PriorCumulative) })
                 e.Property(p).HasPrecision(24, 0);
             e.HasIndex(x => new { x.Ticker, x.ReceiptDate });
+        });
+
+        b.Entity<KrxDaily>(e =>
+        {
+            e.ToTable("krx_daily");
+            e.HasKey(x => new { x.Ticker, x.Date });
+            e.Property(x => x.Ticker).HasMaxLength(12);
+            e.Property(x => x.Market).HasMaxLength(8);
+            foreach (var p in new[] { nameof(KrxDaily.Open), nameof(KrxDaily.High), nameof(KrxDaily.Low), nameof(KrxDaily.Close), nameof(KrxDaily.ChangeFromPrevious) })
+                e.Property(p).HasPrecision(18, 2);
+            e.Property(x => x.TradingValue).HasPrecision(24, 0);
+            e.Property(x => x.MarketCap).HasPrecision(24, 0);
+            e.HasIndex(x => x.Date);
         });
 
         b.Entity<IngestionRun>(e =>

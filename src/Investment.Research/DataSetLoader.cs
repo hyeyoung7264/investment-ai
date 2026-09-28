@@ -35,17 +35,33 @@ public sealed class DataSetLoader(string connectionString)
         List<Bar> Corrected(string ticker, List<Bar> bars) =>
             splits.TryGetValue(ticker, out var ev) ? SplitVerifier.ApplyVolumeCorrections(bars, ev) : bars;
 
+        var krx = universe.PriceSource.Equals("krx", StringComparison.OrdinalIgnoreCase);
+        async IAsyncEnumerable<(string Ticker, List<Bar> Bars)> Stream(IReadOnlyCollection<string> tickers)
+        {
+            if (krx)
+            {
+                // official exchange records, adjusted with KRX base prices (no split-volume correction needed)
+                await foreach (var (ticker, rows) in store.StreamKrxByTickerAsync(loadFrom, end, tickers, ct))
+                    yield return (ticker, Investment.MarketData.Krx.KrxPriceAdjuster.Build(rows).ToList());
+            }
+            else
+            {
+                await foreach (var (ticker, bars) in store.StreamBarsByTickerAsync(loadFrom, end, tickers, ct))
+                    yield return (ticker, Corrected(ticker, bars));
+            }
+        }
+
         var builder = new UniverseBuilder(universe, calendar, start, end);
         var candidates = securities.Values.Where(builder.IsCandidateSecurity).Select(s => s.Ticker).ToList();
-        await foreach (var (ticker, bars) in store.StreamBarsByTickerAsync(loadFrom, end, candidates, ct))
+        await foreach (var (ticker, bars) in Stream(candidates))
             if (securities.TryGetValue(ticker, out var sec))
-                builder.Add(sec, Corrected(ticker, bars));
+                builder.Add(sec, bars);
         var pit = builder.Build();
 
         var members = pit.AllMembers();
         var memberBars = new Dictionary<string, Bar[]>(StringComparer.Ordinal);
-        await foreach (var (ticker, bars) in store.StreamBarsByTickerAsync(loadFrom, end, members, ct))
-            memberBars[ticker] = Corrected(ticker, bars).ToArray();
+        await foreach (var (ticker, bars) in Stream(members))
+            memberBars[ticker] = bars.ToArray();
 
         Dictionary<string, CorporateEvent[]>? events = null;
         if (includeEvents)
@@ -74,6 +90,6 @@ public sealed class DataSetLoader(string connectionString)
 
         return new MarketDataSet(calendar, memberBars,
             securities.Where(kv => members.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value),
-            index.ToArray(), indexCode, pit, includeEvents ? "naver-chart+kind+dart" : "naver-chart+kind", events);
+            index.ToArray(), indexCode, pit, (krx ? "krx-official+kind" : "naver-chart+kind") + (includeEvents ? "+dart" : ""), events);
     }
 }

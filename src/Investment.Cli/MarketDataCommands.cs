@@ -37,6 +37,14 @@ public static class MarketDataCommands
             Log($"disclosures reclassified: {await ing.ReclassifyAsync(ct)}");
             return 0;
         }
+        if (what is "krx")
+        {
+            var key = Investment.MarketData.Krx.KrxClient.LoadKey()
+                ?? throw new CliUsageException("KRX key missing: set KRX_API_KEY or ~/.config/investment-ai/krx.key");
+            await new Investment.MarketData.Krx.KrxIngestion(() => Database.Create(cs), new MarketDataStore(cs), new Investment.MarketData.Krx.KrxClient(key), Log)
+                .RunAsync(o.GetDate("from", new DateOnly(2015, 1, 1)), opt.To, ct);
+            return 0;
+        }
         if (what is "financials")
         {
             var key = Investment.MarketData.Dart.DartClient.LoadKey()
@@ -58,7 +66,7 @@ public static class MarketDataCommands
             if (run.Status != "ok") Console.Error.WriteLine($"price ingestion finished with status {run.Status}: {run.Notes}");
         }
         if (what is not ("securities" or "indices" or "prices" or "all"))
-            throw new CliUsageException("ingest securities|indices|prices|splits|disclosures|financials|all");
+            throw new CliUsageException("ingest securities|indices|prices|splits|disclosures|financials|krx|all");
         return 0;
     }
 
@@ -76,7 +84,16 @@ public static class MarketDataCommands
         var issues = new List<QualityIssue>();
         int tickers = 0;
         long bars = 0, halted = 0;
-        await foreach (var (ticker, series) in store.StreamBarsByTickerAsync(from, to, null, ct))
+        var krxSource = (o.Get("source") ?? "naver") == "krx";
+        async IAsyncEnumerable<(string, List<Bar>)> Source()
+        {
+            if (krxSource)
+                await foreach (var (t, rows) in store.StreamKrxByTickerAsync(from, to, securities.Keys.ToList(), ct))
+                    yield return (t, Investment.MarketData.Krx.KrxPriceAdjuster.Build(rows).ToList());
+            else
+                await foreach (var x in store.StreamBarsByTickerAsync(from, to, null, ct)) yield return x;
+        }
+        await foreach (var (ticker, series) in Source())
         {
             tickers++;
             bars += series.Count;
@@ -89,7 +106,7 @@ public static class MarketDataCommands
         foreach (var g in issues.GroupBy(i => i.Kind).OrderBy(g => g.Key))
             Console.WriteLine($"  {g.Key,-28} issues={g.Count(),6} tickers={g.Select(i => i.Ticker).Distinct().Count(),5}  e.g. {string.Join("; ", g.Take(3).Select(i => $"{i.Ticker}@{i.Date:yyyy-MM-dd} {i.Detail}"))}");
 
-        var outPath = o.Get("out") ?? Path.Combine("reports", "data-quality.json");
+        var outPath = o.Get("out") ?? Path.Combine("reports", krxSource ? "data-quality-krx.json" : "data-quality.json");
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         await File.WriteAllTextAsync(outPath, JsonSerializer.Serialize(new
         {

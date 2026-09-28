@@ -75,3 +75,6 @@ Event date = periodic report receipt date (the day the figures became public; if
 |---|---|---|---|---|
 | H17 | event.pead SUE≥2, grid holding {20, 60} days, universe top 300 | Under-reaction to large positive surprises → drift | a-priori (PEAD literature) | event family cumulative → t threshold ~2.24 |
 | H18 | Same, universe top 100 | Is the drift present in large caps too | a-priori | t threshold ~2.33 |
+
+### M7 results (2026-09-29)
+H17 REJECTED (top 300: EV +1.61%, t=0.64, MDD 30.9% > 30%) · H18 REJECTED (top 100: EV −1.85%). Using the periodic report filing date as the event date means the reaction to the earlier preliminary earnings is already priced in. PEAD would need the preliminary earnings date (type I) and its numbers.

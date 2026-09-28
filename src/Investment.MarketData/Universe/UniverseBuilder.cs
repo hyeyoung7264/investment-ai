@@ -19,6 +19,12 @@ public sealed record UniverseDefinition
     /// <summary>Minimum close at selection (KRW). Excludes penny stocks with huge relative tick size.</summary>
     public double MinPrice { get; init; } = 1000;
 
+    /// <summary>
+    /// "naver" (adjusted chart API; mixes Nextrade prices since 2025-03 on ~2% of days) or "krx" (official exchange
+    /// records, adjusted with KRX base prices). Default "naver" keeps earlier runs reproducible.
+    /// </summary>
+    public string PriceSource { get; init; } = "naver";
+
     /// <summary>Optional explicit ticker list; when set, only these are candidates (still point-in-time filtered).</summary>
     public IReadOnlyList<string>? Tickers { get; init; }
 }

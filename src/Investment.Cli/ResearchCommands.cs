@@ -18,6 +18,7 @@ public static class ResearchCommands
         MinHistoryBars = o.GetInt("min-history", 120),
         MinPrice = o.GetDouble("min-price", 1000),
         Tickers = o.Get("tickers")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+        PriceSource = o.Get("price-source") ?? "naver",
     };
 
     public static BacktestConfig Config(CliOptions o, DateOnly start, DateOnly end) => new()
