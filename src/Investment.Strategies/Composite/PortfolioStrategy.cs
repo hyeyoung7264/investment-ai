@@ -46,6 +46,8 @@ public sealed class PortfolioStrategy : IStrategy
             }),
         });
 
+    public bool UsesFundamentals => _members.Any(m => m.Strategy.UsesFundamentals);
+
     public int WarmupBars => _members.Max(m => m.Strategy.WarmupBars);
 
     public bool UsesCorporateEvents => _members.Any(m => m.Strategy.UsesCorporateEvents);

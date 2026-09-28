@@ -46,6 +46,9 @@ public interface IStrategy
 
     /// <summary>True if the strategy reads <see cref="StrategyContext.Events"/> (disclosures are then loaded and hashed).</summary>
     bool UsesCorporateEvents => false;
+
+    /// <summary>True if the strategy reads <see cref="StrategyContext.Fundamentals"/> (financials + market cap loaded and hashed).</summary>
+    bool UsesFundamentals => false;
 }
 
 /// <summary>A held position as the strategy sees it. EntryReason carries the buy signal's reason (used for ownership tags).</summary>
@@ -61,9 +64,11 @@ public sealed class StrategyContext(
     Func<string, BarSeries?> history,
     BarSeries? marketIndex,
     IReadOnlyDictionary<string, HeldPosition> positions,
-    Func<string, IReadOnlyList<CorporateEvent>>? events = null)
+    Func<string, IReadOnlyList<CorporateEvent>>? events = null,
+    Func<string, TickerFundamentals?>? fundamentals = null)
 {
     private readonly Func<string, IReadOnlyList<CorporateEvent>>? _events = events;
+    private readonly Func<string, TickerFundamentals?>? _fundamentals = fundamentals;
 
     public DateOnly AsOf { get; } = asOf;
 
@@ -90,7 +95,28 @@ public sealed class StrategyContext(
         return n == all.Count ? all : all.Take(n).ToList();
     }
 
+    /// <summary>
+    /// Trailing-twelve-month operating income and revenue from the last four quarters filed on or before
+    /// <see cref="AsOf"/>, and the official market cap of the latest session on or before it.
+    /// </summary>
+    public FundamentalSnapshot Fundamentals(string ticker)
+    {
+        if (_fundamentals?.Invoke(ticker) is not { } f) return new FundamentalSnapshot(null, null, null, 0);
+        var known = f.Quarters.Where(q => q.ReceiptDate <= AsOf)
+            .GroupBy(q => (q.FiscalYear, q.Quarter)).Select(g => g.Last())
+            .OrderBy(q => q.FiscalYear).ThenBy(q => q.Quarter).TakeLast(4).ToList();
+        double? ttmOi = null, ttmRev = null;
+        var consecutive = known.Count == 4 && (known[3].FiscalYear * 4 + known[3].Quarter) - (known[0].FiscalYear * 4 + known[0].Quarter) == 3;
+        if (consecutive && known.All(q => q.OperatingIncome is not null)) ttmOi = known.Sum(q => (double)q.OperatingIncome!.Value);
+        if (consecutive && known.All(q => q.Revenue is not null)) ttmRev = known.Sum(q => (double)q.Revenue!.Value);
+        double? cap = null;
+        var idx = Array.BinarySearch(f.CapDates, AsOf);
+        if (idx < 0) idx = ~idx - 1;
+        if (idx >= 0) cap = f.MarketCaps[idx];
+        return new FundamentalSnapshot(ttmOi, ttmRev, cap, known.Count);
+    }
+
     /// <summary>A copy with different positions (composites give each member only its own positions).</summary>
     public StrategyContext WithPositions(IReadOnlyDictionary<string, HeldPosition> positions) =>
-        new(AsOf, Universe, history, MarketIndex, positions, _events);
+        new(AsOf, Universe, history, MarketIndex, positions, _events, _fundamentals);
 }

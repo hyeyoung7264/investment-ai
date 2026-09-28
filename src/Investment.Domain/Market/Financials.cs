@@ -31,3 +31,9 @@ public sealed class FinancialReportLine
 public sealed record QuarterResult(
     string Ticker, int FiscalYear, int Quarter, DateOnly ReceiptDate, string FsDiv,
     decimal? Revenue, decimal? OperatingIncome, decimal? PriorOperatingIncome, decimal? NetIncome);
+
+/// <summary>Per-ticker fundamentals for a simulation: filed quarters (by receipt date) and official daily market cap.</summary>
+public sealed record TickerFundamentals(QuarterResult[] Quarters, DateOnly[] CapDates, double[] MarketCaps);
+
+/// <summary>Fundamentals as known at the as-of date.</summary>
+public readonly record struct FundamentalSnapshot(double? TtmOperatingIncome, double? TtmRevenue, double? MarketCap, int QuartersKnown);

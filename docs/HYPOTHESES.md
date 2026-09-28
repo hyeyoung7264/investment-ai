@@ -78,3 +78,12 @@ Event date = periodic report receipt date (the day the figures became public; if
 
 ### M7 results (2026-09-29)
 H17 REJECTED (top 300: EV +1.61%, t=0.64, MDD 30.9% > 30%) · H18 REJECTED (top 100: EV −1.85%). Using the periodic report filing date as the event date means the reaction to the earlier preliminary earnings is already priced in. PEAD would need the preliminary earnings date (type I) and its numbers.
+
+## M8 — official KRX data + using idle capital (recorded 2026-09-29, before running)
+
+Background: since Nextrade (2025-03), ~2% of Naver prices differ from KRX official → **new studies use `--price-source krx`**. H6 re-check on KRX (diagnostic): EV +1.33%/trade (t=3.27), MDD 8.3% — holds. H6 uses only **13.5%** of capital on average (flat on 47% of days).
+
+| ID | Strategy / conditions | Hypothesis | Origin | Note |
+|---|---|---|---|---|
+| H19 | value.ey (TTM operating income / market cap top 10, monthly rebalance, sell below rank 30), universe top 300, grid TrendFilter {off, on} | Value premium; low turnover suits idle capital | a-priori (value premium literature, Faber trend filter) | new family, 2 variants → t 1.96 |
+| H20 | composite.portfolio [H6 params (members limited to liquidity top 100) > value.ey (H19 selected variant)], universe top 300, shared capital | Filling H6's idle capital with value raises daily return | **post-hoc** (H6 base) | Gate capped at HOLD. The point is measuring actual daily return |

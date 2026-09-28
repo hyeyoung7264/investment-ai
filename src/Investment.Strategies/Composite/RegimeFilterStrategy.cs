@@ -49,6 +49,8 @@ public sealed class RegimeFilterStrategy : IStrategy
             _p.BlockedRegimes,
         });
 
+    public bool UsesFundamentals => _inner.UsesFundamentals;
+
     public int WarmupBars => _inner.WarmupBars;
 
     public bool UsesCorporateEvents => _inner.UsesCorporateEvents;

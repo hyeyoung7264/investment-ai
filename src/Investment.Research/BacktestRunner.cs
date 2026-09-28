@@ -29,17 +29,18 @@ public sealed record RerunReport(Guid RunId, bool DataMatches, bool ResultMatche
 public sealed class BacktestRunner(string connectionString, Action<string>? log = null)
 {
     private readonly Action<string> _log = log ?? (_ => { });
-    private readonly Dictionary<(string, DateOnly, DateOnly, bool), MarketDataSet> _cache = new();
+    private readonly Dictionary<(string, DateOnly, DateOnly, bool, bool), MarketDataSet> _cache = new();
     private readonly CodeVersion _code = CodeVersion.Detect();
 
     public Func<InvestmentDbContext> DbFactory => () => Database.Create(connectionString);
 
-    public async Task<MarketDataSet> LoadDataAsync(UniverseDefinition universe, DateOnly start, DateOnly end, CancellationToken ct, bool includeEvents = false)
+    public async Task<MarketDataSet> LoadDataAsync(UniverseDefinition universe, DateOnly start, DateOnly end, CancellationToken ct,
+        bool includeEvents = false, bool includeFundamentals = false)
     {
-        var key = (JsonSerializer.Serialize(universe), start, end, includeEvents);
+        var key = (JsonSerializer.Serialize(universe), start, end, includeEvents, includeFundamentals);
         if (_cache.TryGetValue(key, out var cached)) return cached;
         var sw = Stopwatch.StartNew();
-        var data = await new DataSetLoader(connectionString).LoadAsync(universe, start, end, includeEvents: includeEvents, ct: ct);
+        var data = await new DataSetLoader(connectionString).LoadAsync(universe, start, end, includeEvents: includeEvents, ct: ct, includeFundamentals: includeFundamentals);
         _log($"data loaded: {data.Bars.Count} tickers, {data.Bars.Values.Sum(b => b.Length):N0} bars, {data.Universe.Snapshots.Count} universe snapshots, {data.Discontinuities.Count} tickers with discontinuities ({sw.Elapsed.TotalSeconds:F1}s)");
         _cache[key] = data;
         return data;
@@ -48,7 +49,7 @@ public sealed class BacktestRunner(string connectionString, Action<string>? log 
     public async Task<RunOutcome> RunAsync(BacktestRequest req, CancellationToken ct = default)
     {
         var strategy = StrategyCatalog.Create(req.StrategyId, req.ParametersJson);
-        var data = await LoadDataAsync(req.Universe, req.Config.Start, req.Config.End, ct, strategy.UsesCorporateEvents);
+        var data = await LoadDataAsync(req.Universe, req.Config.Start, req.Config.End, ct, strategy.UsesCorporateEvents, strategy.UsesFundamentals);
         return await RunOnDataAsync(strategy, data, req, ct);
     }
 
@@ -87,7 +88,7 @@ public sealed class BacktestRunner(string connectionString, Action<string>? log 
             Costs = costs, Risk = settings.Risk, DiscontinuityCooldownSessions = settings.DiscontinuityCooldownSessions,
             LiquidityLookback = settings.LiquidityLookback,
         };
-        var data = await LoadDataAsync(universe, cfg.Start, cfg.End, ct, strategy.UsesCorporateEvents);
+        var data = await LoadDataAsync(universe, cfg.Start, cfg.End, ct, strategy.UsesCorporateEvents, strategy.UsesFundamentals);
         var result = new BacktestEngine().Run(strategy, data, cfg);
         var newResult = result.ResultHash();
         var parametersMatch = BacktestRecorder.Sha256(strategy.Descriptor.ParametersJson) == version.ParametersHash;

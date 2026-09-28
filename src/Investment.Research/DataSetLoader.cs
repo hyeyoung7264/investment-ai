@@ -16,7 +16,7 @@ public sealed class DataSetLoader(string connectionString)
     public const int WarmupCalendarDays = 450;
 
     public async Task<MarketDataSet> LoadAsync(UniverseDefinition universe, DateOnly start, DateOnly end, string indexCode = "KOSPI",
-        bool includeEvents = false, CancellationToken ct = default)
+        bool includeEvents = false, CancellationToken ct = default, bool includeFundamentals = false)
     {
         var store = new MarketDataStore(connectionString);
         var loadFrom = start.AddDays(-WarmupCalendarDays);
@@ -88,8 +88,25 @@ public sealed class DataSetLoader(string connectionString)
                 g => g.OrderBy(r => r.Item3.Date).ThenBy(r => r.Item2, StringComparer.Ordinal).Select(r => r.Item3).ToArray());
         }
 
+        Dictionary<string, TickerFundamentals>? fundamentals = null;
+        if (includeFundamentals)
+        {
+            var tickers = members.ToList();
+            List<FinancialReportLine> lines;
+            await using (var db = Database.Create(connectionString))
+                lines = await db.FinancialReportLines.AsNoTracking().Where(l => l.Ticker != null && tickers.Contains(l.Ticker)).ToListAsync(ct);
+            var quarters = Investment.MarketData.Dart.EarningsCalculator.Quarters(lines).GroupBy(q => q.Ticker)
+                .ToDictionary(g => g.Key, g => g.OrderBy(q => q.ReceiptDate).ThenBy(q => q.FiscalYear).ThenBy(q => q.Quarter).ToArray());
+            fundamentals = new Dictionary<string, TickerFundamentals>(StringComparer.Ordinal);
+            await foreach (var (ticker, rows) in store.StreamKrxByTickerAsync(loadFrom, end, tickers, ct))
+                fundamentals[ticker] = new TickerFundamentals(quarters.GetValueOrDefault(ticker) ?? [],
+                    rows.Select(r => r.Date).ToArray(), rows.Select(r => (double)r.MarketCap).ToArray());
+            foreach (var t in tickers.Where(t => !fundamentals.ContainsKey(t) && quarters.ContainsKey(t)))
+                fundamentals[t] = new TickerFundamentals(quarters[t], [], []);
+        }
+
         return new MarketDataSet(calendar, memberBars,
             securities.Where(kv => members.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value),
-            index.ToArray(), indexCode, pit, (krx ? "krx-official+kind" : "naver-chart+kind") + (includeEvents ? "+dart" : ""), events);
+            index.ToArray(), indexCode, pit, (krx ? "krx-official+kind" : "naver-chart+kind") + (includeEvents ? "+dart" : "") + (includeFundamentals ? "+fundamentals" : ""), events, fundamentals);
     }
 }

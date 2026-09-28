@@ -18,9 +18,11 @@ public sealed class MarketDataSet
         string indexCode,
         PointInTimeUniverse universe,
         string source,
-        IReadOnlyDictionary<string, CorporateEvent[]>? events = null)
+        IReadOnlyDictionary<string, CorporateEvent[]>? events = null,
+        IReadOnlyDictionary<string, TickerFundamentals>? fundamentals = null)
     {
         Events = events;
+        Fundamentals = fundamentals;
         Calendar = calendar;
         Securities = securities;
         Index = index;
@@ -57,6 +59,9 @@ public sealed class MarketDataSet
     public PointInTimeUniverse Universe { get; }
     public string Source { get; }
 
+    /// <summary>Fundamentals per ticker (null when the strategy does not use them).</summary>
+    public IReadOnlyDictionary<string, TickerFundamentals>? Fundamentals { get; }
+
     /// <summary>Corporate events per ticker, ascending by date (null when the strategy does not use events).</summary>
     public IReadOnlyDictionary<string, CorporateEvent[]>? Events { get; }
 
@@ -83,6 +88,15 @@ public sealed class MarketDataSet
         }
         sb.Append("universe=").Append(Universe.Hash());
         Flush();
+        if (Fundamentals is not null)
+        {
+            foreach (var ticker in Fundamentals.Keys.Order(StringComparer.Ordinal))
+            {
+                sb.Append("$").Append(ticker).Append('\n');
+                AppendFundamentals(sb, Fundamentals[ticker]);
+                Flush();
+            }
+        }
         if (Events is not null)
         {
             foreach (var ticker in Events.Keys.Order(StringComparer.Ordinal))
@@ -98,6 +112,15 @@ public sealed class MarketDataSet
             }
         }
         return Convert.ToHexStringLower(sha.GetHashAndReset());
+    }
+
+    private static void AppendFundamentals(StringBuilder sb, TickerFundamentals f)
+    {
+        foreach (var q in f.Quarters)
+            sb.Append(q.FiscalYear).Append('Q').Append(q.Quarter).Append(',').Append(q.ReceiptDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture))
+              .Append(',').Append(q.OperatingIncome).Append(',').Append(q.Revenue).Append('\n');
+        for (var i = 0; i < f.CapDates.Length; i++)
+            sb.Append(f.CapDates[i].ToString("yyyyMMdd", CultureInfo.InvariantCulture)).Append(',').Append(f.MarketCaps[i].ToString("R", CultureInfo.InvariantCulture)).Append('\n');
     }
 
     private static void AppendBar(StringBuilder sb, Bar b) =>

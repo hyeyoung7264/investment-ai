@@ -44,6 +44,8 @@ public sealed class EventFilterStrategy : IStrategy
             _p.LookbackDays,
         });
 
+    public bool UsesFundamentals => _inner.UsesFundamentals;
+
     public int WarmupBars => _inner.WarmupBars;
     public bool UsesCorporateEvents => true;
 

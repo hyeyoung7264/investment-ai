@@ -4,6 +4,7 @@ using Investment.Strategies.Breakout;
 using Investment.Strategies.Composite;
 using Investment.Strategies.Control;
 using Investment.Strategies.EventDriven;
+using Investment.Strategies.Fundamental;
 using Investment.Strategies.MeanReversion;
 using Investment.Strategies.Momentum;
 
@@ -25,6 +26,7 @@ public static class StrategyCatalog
         [CapitulationStrategy.Id] = json => new CapitulationStrategy(Parse<CapitulationParameters>(json)),
         [VolumeBreakoutStrategy.Id] = json => new VolumeBreakoutStrategy(Parse<VolumeBreakoutParameters>(json)),
         [EarningsDriftStrategy.Id] = json => new EarningsDriftStrategy(Parse<EarningsDriftParameters>(json)),
+        [EarningsYieldStrategy.Id] = json => new EarningsYieldStrategy(Parse<EarningsYieldParameters>(json)),
         [BuybackStrategy.Id] = json => new BuybackStrategy(Parse<BuybackParameters>(json)),
         [EventFilterStrategy.Id] = json => new EventFilterStrategy(Parse<EventFilterParameters>(json)),
         [PortfolioStrategy.Id] = json => new PortfolioStrategy(Parse<PortfolioParameters>(json)),

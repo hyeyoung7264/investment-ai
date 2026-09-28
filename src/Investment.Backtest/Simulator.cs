@@ -310,7 +310,8 @@ public sealed class Simulator
             tk => _tickers.TryGetValue(tk, out var td) ? new BarSeries(tk, td.Bars, td.Visible[i]) : null,
             new BarSeries(_data.IndexCode, _data.Index, VisibleIndex(_data.Index, date)),
             held,
-            _data.Events is { } ev ? tk => ev.TryGetValue(tk, out var list) ? list : [] : null);
+            _data.Events is { } ev ? tk => ev.TryGetValue(tk, out var list) ? list : [] : null,
+            _data.Fundamentals is { } fu ? tk => fu.TryGetValue(tk, out var f) ? f : null : null);
         var signals = _strategy.GenerateSignals(ctx);
         _obs.OnSignals(date, signals.Count);
         var regime = RegimeAt(date);
