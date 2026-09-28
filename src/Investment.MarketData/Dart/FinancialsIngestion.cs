@@ -47,18 +47,24 @@ public sealed class FinancialsIngestion(Func<InvestmentDbContext> dbFactory, Dar
             try
             {
                 await using var db = dbFactory();
-                var keys = rows.Select(r => r.CorpCode).Distinct().ToList();
+                // the API can return periods other than the requested one (non-December fiscal years): key on the full id
+                var unique = rows.GroupBy(r => (r.CorpCode, r.FiscalYear, r.ReportCode, r.FsDiv, r.Account)).Select(g => g.First()).ToList();
+                var corpsInRows = unique.Select(r => r.CorpCode).Distinct().ToList();
+                var years = unique.Select(r => r.FiscalYear).Distinct().ToList();
                 var existing = await db.FinancialReportLines
-                    .Where(l => keys.Contains(l.CorpCode) && l.FiscalYear == job.Year && l.ReportCode == job.Code).ToListAsync(token);
-                var map = existing.ToDictionary(l => (l.CorpCode, l.FsDiv, l.Account));
-                foreach (var r in rows)
+                    .Where(l => corpsInRows.Contains(l.CorpCode) && years.Contains(l.FiscalYear)).ToListAsync(token);
+                var map = existing.ToDictionary(l => (l.CorpCode, l.FiscalYear, l.ReportCode, l.FsDiv, l.Account));
+                foreach (var r in unique)
                 {
-                    if (map.TryGetValue((r.CorpCode, r.FsDiv, r.Account), out var old))
+                    if (map.TryGetValue((r.CorpCode, r.FiscalYear, r.ReportCode, r.FsDiv, r.Account), out var old))
                     {
                         if (old.ReceiptNo == r.ReceiptNo) continue;
-                        db.FinancialReportLines.Remove(old);
+                        // amendment: update in place
+                        old.Ticker = r.Ticker; old.ThisAmount = r.ThisAmount; old.ThisCumulative = r.ThisCumulative;
+                        old.PriorAmount = r.PriorAmount; old.PriorCumulative = r.PriorCumulative;
+                        old.ReceiptNo = r.ReceiptNo; old.ReceiptDate = r.ReceiptDate;
                     }
-                    db.FinancialReportLines.Add(r);
+                    else db.FinancialReportLines.Add(r);
                 }
                 await db.SaveChangesAsync(token);
                 calls++;
