@@ -40,6 +40,9 @@ public static class PaperCommands
                     await ingest.SyncSecurityMasterAsync(opt.From, ct);
                     await ingest.IngestIndicesAsync(opt, ct);
                     await ingest.IngestPricesAsync(opt, ct);
+                    if (Investment.MarketData.Krx.KrxClient.LoadKey() is { } krxKey)
+                        await new Investment.MarketData.Krx.KrxIngestion(() => Database.Create(cs), new MarketDataStore(cs), new Investment.MarketData.Krx.KrxClient(krxKey), Log)
+                            .RunAsync(DateOnly.FromDateTime(DateTime.Today).AddDays(-14), DateOnly.FromDateTime(DateTime.Today), ct);
                     if (Investment.MarketData.Dart.DartClient.LoadKey() is { } dartKey)
                         await new Investment.MarketData.Dart.DisclosureIngestion(() => Database.Create(cs), new Investment.MarketData.Dart.DartClient(dartKey), Log)
                             .RunAsync(DateOnly.FromDateTime(DateTime.Today).AddDays(-10), DateOnly.FromDateTime(DateTime.Today), ["B", "I"], ct);
@@ -50,6 +53,10 @@ public static class PaperCommands
                     Console.WriteLine($"{r.Name}: +{r.SessionsProcessed} sessions ({r.From:yyyy-MM-dd}..{r.To:yyyy-MM-dd}), orders {r.NewOrders}, closed trades {r.NewTrades}, equity {r.Equity:N0}, regime {r.Regime}{(r.RegimeBlocked ? " [entries paused]" : "")}, gate {r.Gate?.Decision}: {string.Join("; ", r.Gate?.Reasons ?? [])}");
                 return 0;
             }
+            case "set-source":
+                await svc.SetPriceSourceAsync(Guid.Parse(o.Require("session")), o.Require("price-source"), ct);
+                Console.WriteLine($"session {o.Require("session")} now uses price source {o.Require("price-source")}");
+                return 0;
             case "status":
                 return await StatusAsync(cs, o, ct);
             default:

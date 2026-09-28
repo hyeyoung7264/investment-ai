@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Daily post-close job: refresh market data, advance all active paper sessions, log the result.
-# Run after 19:30 KST on trading days (after the DART filing window, so same-day filings are included). Paper only — this system has no broker connection.
+# Daily paper job: refresh market data, advance all active paper sessions, log the result.
+# Run on trading-day mornings before the open (e.g. 08:10 KST): KRX official records of the previous session are
+# published T+1, DART filings of the previous day are complete; orders are for that morning's open. Paper only — this system has no broker connection.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p reports/paper

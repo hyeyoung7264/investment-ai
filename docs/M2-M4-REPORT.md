@@ -77,7 +77,7 @@ scripts/paper-daily.sh
 ```
 cron is not running in this WSL, so registering with Windows Task Scheduler is an option (not registered — Owner decision):
 ```bash
-schtasks.exe /Create /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST 19:40 /TN InvestmentPaperDaily /TR "wsl.exe -d Ubuntu -- bash -lc ~/investment-ai/scripts/paper-daily.sh"
+schtasks.exe /Create /SC WEEKLY /D MON,TUE,WED,THU,FRI /ST 08:10 /TN InvestmentPaperDaily /TR "wsl.exe -d Ubuntu -- bash -lc ~/investment-ai/scripts/paper-daily.sh"
 ```
 
 ## Limitations and next decisions

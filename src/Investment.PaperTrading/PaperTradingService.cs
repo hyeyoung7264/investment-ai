@@ -235,6 +235,14 @@ public sealed class PaperTradingService(string connectionString, Action<string>?
             lastData = await db.IndexPrices.Where(p => p.IndexCode == "KOSPI").MaxAsync(p => p.Date, ct);
         }
         var universe = JsonSerializer.Deserialize<UniverseDefinition>(session.UniverseJson)!;
+        if (universe.PriceSource.Equals("krx", StringComparison.OrdinalIgnoreCase))
+        {
+            // KRX publishes T+1: never step past the last session with official records, or held positions would
+            // look like delisted ("data ended") on the index calendar
+            await using var db = Db();
+            var krxLast = await db.KrxDailyRows.MaxAsync(k => (DateOnly?)k.Date, ct);
+            if (krxLast is null || krxLast < lastData) lastData = krxLast ?? DateOnly.MinValue;
+        }
         var cfg = new BacktestConfig
         {
             Start = session.StartDate, End = lastData, InitialCapital = session.InitialCapital,
@@ -312,6 +320,29 @@ public sealed class PaperTradingService(string connectionString, Action<string>?
         _log($"paper {session.Name}: processed {processed} session(s) {from:yyyy-MM-dd}..{to:yyyy-MM-dd}, {recorder.NewOrders.Count} orders, {recorder.NewTrades.Count} closed trades, regime {regime}");
         return new PaperDailyResult(session.Id, session.Name, processed, from, to, recorder.NewOrders.Count, recorder.NewTrades.Count,
             state.PrevNetEquity, regime, regime is not null && blocked.Contains(regime), gate);
+    }
+
+    /// <summary>
+    /// Switches a session's price source (e.g. to official KRX records). Only allowed while the session has no
+    /// positions, pending orders or closed trades, so no recorded evidence changes meaning. Logged in paper_runs.
+    /// </summary>
+    public async Task SetPriceSourceAsync(Guid sessionId, string source, CancellationToken ct = default)
+    {
+        await using var db = Db();
+        var session = await db.PaperSessions.SingleAsync(s => s.Id == sessionId, ct);
+        var state = SimulationState.FromJson(session.StateJson);
+        if (state.Positions.Count > 0 || state.Pending.Count > 0 || await db.PaperTrades.AnyAsync(t => t.SessionId == sessionId, ct))
+            throw new InvalidOperationException("session has positions, orders or trades; start a new session instead");
+        var universe = JsonSerializer.Deserialize<UniverseDefinition>(session.UniverseJson)! with { PriceSource = source };
+        var old = JsonSerializer.Deserialize<UniverseDefinition>(session.UniverseJson)!.PriceSource;
+        session.UniverseJson = JsonSerializer.Serialize(universe, Json);
+        session.UpdatedAt = DateTimeOffset.UtcNow;
+        db.PaperRuns.Add(new PaperRunLog
+        {
+            SessionId = sessionId, RunAt = DateTimeOffset.UtcNow, SessionsProcessed = 0, DataHash = "-",
+            CodeCommit = CodeVersion.Detect().Commit, Notes = $"price source {old} -> {source} (no positions/orders/trades at switch)",
+        });
+        await db.SaveChangesAsync(ct);
     }
 
     /// <summary>PAPER → APPROVED / hold / DISABLED from accumulated paper evidence.</summary>
