@@ -86,3 +86,31 @@ public sealed class EventTests
         Assert.Throws<DartException>(() => DartClient.Parse("""{"status":"020","message":"요청 제한을 초과하였습니다."}""", "B"));
     }
 }
+
+public sealed class EarningsReactionTests
+{
+    private static readonly DateOnly D0 = new(2024, 5, 1);
+
+    private static Bar B(int day, double close) => new(D0.AddDays(day), close, close, close, close, 1000, false);
+
+    private static StrategyContext Ctx(Bar[] stock, Bar[] index, CorporateEvent ev) =>
+        new(stock[^1].Date, ["S"], t => new BarSeries(t, stock, stock.Length), new BarSeries("KOSPI", index, index.Length),
+            new Dictionary<string, HeldPosition>(), t => [ev]);
+
+    [Fact]
+    public void Buys_only_when_the_two_session_window_after_the_filing_has_closed_with_a_large_abnormal_reaction()
+    {
+        // filing on day 2 (time unknown): window = close(day1) -> close(day3); stock +12%, index +2% -> AR +10%
+        var ev = new CorporateEvent(D0.AddDays(2), DisclosureEvent.PreliminaryEarnings, "영업(잠정)실적(공정공시)");
+        Bar[] stock = [B(0, 100), B(1, 100), B(2, 106), B(3, 112)];
+        Bar[] index = [B(0, 100), B(1, 100), B(2, 101), B(3, 102)];
+        var buy = Assert.Single(new EarningsReactionStrategy().GenerateSignals(Ctx(stock, index, ev)));
+        Assert.Equal(0.10, buy.Score, 6);
+
+        // one session earlier the window has not closed yet: no signal (no look-ahead into the second reaction day)
+        Assert.Empty(new EarningsReactionStrategy().GenerateSignals(Ctx(stock[..3], index[..3], ev)));
+        // a reaction that only matches the market is not a surprise
+        Bar[] flatVsIndex = [B(0, 100), B(1, 100), B(2, 101), B(3, 102)];
+        Assert.Empty(new EarningsReactionStrategy().GenerateSignals(Ctx(flatVsIndex, index, ev)));
+    }
+}
