@@ -56,6 +56,26 @@ public sealed class KrxClient(string apiKey, HttpClient? http = null)
         return body;
     }, ct);
 
+    /// <summary>
+    /// Front-month KOSPI 200 futures (day session, highest open interest) and its spot on one day, or null.
+    /// </summary>
+    public async Task<(decimal Futures, decimal Spot, long OpenInterest)?> GetKospi200FrontFutureAsync(DateOnly date, CancellationToken ct)
+    {
+        using var doc = JsonDocument.Parse(await GetJsonAsync($"https://data-dbg.krx.co.kr/svc/apis/drv/fut_bydd_trd?basDd={date:yyyyMMdd}", ct));
+        if (!doc.RootElement.TryGetProperty("OutBlock_1", out var rows)) throw new KrxException("?", "no OutBlock_1");
+        (decimal, decimal, long)? best = null;
+        foreach (var r in rows.EnumerateArray())
+        {
+            if (r.GetProperty("PROD_NM").GetString() != "코스피200 선물") continue;
+            var name = r.GetProperty("ISU_NM").GetString() ?? "";
+            if (name.Contains("야간", StringComparison.Ordinal) || name.Contains("SP", StringComparison.Ordinal)) continue; // day session outrights only
+            var f = Dec(r, "TDD_CLSPRC"); var spot = Dec(r, "SPOT_PRC"); var oi = (long)Dec(r, "ACC_OPNINT_QTY");
+            if (f <= 0 || spot <= 0) continue;
+            if (best is null || oi > best.Value.Item3) best = (f, spot, oi);
+        }
+        return best;
+    }
+
     /// <summary>All stocks of one market on one day. market: "stk" (KOSPI) or "ksq" (KOSDAQ).</summary>
     public async Task<IReadOnlyList<KrxDaily>> GetDailyAsync(string market, DateOnly date, CancellationToken ct)
     {

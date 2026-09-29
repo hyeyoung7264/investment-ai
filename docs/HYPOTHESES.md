@@ -103,3 +103,13 @@ Common settings: instrument **KODEX 200 (069500, 1x)**, KRX official prices, one
 | H21 | meanrev.zscore on KODEX 200, grid EntryZ {-1.5, -2.0}, no trend filter, exit SMA5 / 10 days | Index short-term oversold reversal; ETF low cost preserves the edge | a-priori (index short-term reversal, Connors) | **Same code as meanrev family → family multiple testing applied (high t threshold)** |
 | H22 | index.volspike (VKOSPI ≥ 1.3× 60-day median → buy, exit when back at median or 20 days) | Mean reversion after fear spikes (forced de-risking) | a-priori (volatility risk premium / fear-spike literature) | new index family, 1 variant |
 | H23 | index.trend (hold KODEX 200 above SMA200) | Keep index return while avoiding deep drawdowns (time-series momentum) | a-priori (Faber 2007) | Few trades → the 100-trade minimum may not be met (criterion unchanged) |
+
+### M10 results (2026-09-30)
+H21 HOLD (22 trades, EV +0.15%, t=0.16 < 2.54) · H22 REJECTED (EV −0.35%, MDD 34.9%) · H23 REJECTED (0.047%/day but MDD 40.8%, 6 trades). Structural finding: index timing trades only 6–22 times in 6 years → cannot meet the Gate's 100-trade minimum.
+
+## M11 — futures basis (recorded 2026-09-30, before running; last round of new-data research)
+Options (5.5MB/day → 16GB total) are excluded as too heavy. Data: front-month KOSPI 200 futures (day session, highest open interest) close vs spot → basis = (F−S)/S.
+
+| ID | Strategy / conditions | Hypothesis | Origin | Note |
+|---|---|---|---|---|
+| H24 | index.basis: basis z (60 days) ≤ −2 → buy KODEX 200, exit when z ≥ 0 or 10 days | Deep negative basis = excessive hedging/pessimism → contrarian rebound | a-priori (sentiment contrarian) | index family (variants accumulate); few trades expected |

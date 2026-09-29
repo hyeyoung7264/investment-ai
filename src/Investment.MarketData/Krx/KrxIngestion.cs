@@ -81,4 +81,34 @@ public sealed class KrxIngestion(Func<InvestmentDbContext> dbFactory, MarketData
         _log($"krx etf/index: done {days} sessions, {rows} ETF rows");
         return (days, rows);
     }
+
+    /// <summary>KOSPI 200 front-month basis in basis points (index code "K200BASIS": Close = (F−S)/S × 10,000).</summary>
+    public async Task<int> RunFuturesBasisAsync(DateOnly from, DateOnly to, CancellationToken ct, int parallel = 2)
+    {
+        List<DateOnly> calendar, done;
+        await using (var db = dbFactory())
+        {
+            calendar = await db.IndexPrices.Where(p => p.IndexCode == "KOSPI" && p.Date >= from && p.Date <= to).Select(p => p.Date).OrderBy(d => d).ToListAsync(ct);
+            done = await db.IndexPrices.Where(p => p.IndexCode == "K200BASIS" && p.Date >= from && p.Date <= to).Select(p => p.Date).ToListAsync(ct);
+        }
+        var todo = calendar.Except(done).ToList();
+        _log($"futures basis: {todo.Count} sessions to fetch");
+        var n = 0;
+        await Parallel.ForEachAsync(todo, new ParallelOptions { MaxDegreeOfParallelism = parallel, CancellationToken = ct }, async (d, token) =>
+        {
+            try
+            {
+                if (await client.GetKospi200FrontFutureAsync(d, token) is not { } f) return;
+                var bp = (f.Futures - f.Spot) / f.Spot * 10_000m;
+                await store.UpsertIndexPricesAsync([new Investment.Domain.Market.IndexPrice
+                {
+                    IndexCode = "K200BASIS", Date = d, Open = bp, High = bp, Low = bp, Close = bp, Volume = f.OpenInterest, Source = "krx", IngestedAt = DateTimeOffset.UtcNow,
+                }], token);
+                if (Interlocked.Increment(ref n) % 500 == 0) _log($"futures basis: {n}/{todo.Count}");
+            }
+            catch (HttpRequestException e) { _log($"futures basis: {d:yyyy-MM-dd} skipped ({e.Message})"); }
+        });
+        _log($"futures basis: done {n}");
+        return n;
+    }
 }

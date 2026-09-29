@@ -29,6 +29,7 @@ public static class StrategyCatalog
         [EarningsDriftStrategy.Id] = json => new EarningsDriftStrategy(Parse<EarningsDriftParameters>(json)),
         [EarningsYieldStrategy.Id] = json => new EarningsYieldStrategy(Parse<EarningsYieldParameters>(json)),
         [VolatilitySpikeStrategy.Id] = json => new VolatilitySpikeStrategy(Parse<VolatilitySpikeParameters>(json)),
+        [BasisStrategy.Id] = json => new BasisStrategy(Parse<BasisParameters>(json)),
         [IndexTrendStrategy.Id] = json => new IndexTrendStrategy(Parse<TrendParameters>(json)),
         [BuybackStrategy.Id] = json => new BuybackStrategy(Parse<BuybackParameters>(json)),
         [EventFilterStrategy.Id] = json => new EventFilterStrategy(Parse<EventFilterParameters>(json)),
