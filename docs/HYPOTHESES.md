@@ -123,3 +123,6 @@ Fix for H17's failure (late event date): event = **preliminary earnings / earnin
 | ID | Conditions | Hypothesis | Origin | Note |
 |---|---|---|---|---|
 | H25 | event.ear grid: abnormal 2-day reaction ≥ {+5%, +10%} | Prices under-react to earnings news → drift in the direction of the initial reaction | a-priori (EAR/PEAD literature: Chan-Jegadeesh-Lakonishok 1996, Brandt et al. 2008) | event family cumulative (~6 variants) → t ≈ 2.4 |
+
+### M12 results (2026-09-30)
+H25 REJECTED: 155 trades, EV −0.24%/trade (t=−0.20), total −7.5%. Even measured precisely at the preliminary-earnings date, the post-announcement reaction drift does not exist in 2021–2026 liquid Korean stocks (strong-market large-cap reactions reversed: Bull/HighVol −4.35%, 58 trades).
