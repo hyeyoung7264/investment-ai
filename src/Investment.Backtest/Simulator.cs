@@ -311,7 +311,8 @@ public sealed class Simulator
             new BarSeries(_data.IndexCode, _data.Index, VisibleIndex(_data.Index, date)),
             held,
             _data.Events is { } ev ? tk => ev.TryGetValue(tk, out var list) ? list : [] : null,
-            _data.Fundamentals is { } fu ? tk => fu.TryGetValue(tk, out var f) ? f : null : null);
+            _data.Fundamentals is { } fu ? tk => fu.TryGetValue(tk, out var f) ? f : null : null,
+            _data.AuxIndices is { } aux ? code => aux.TryGetValue(code, out var b) ? b : null : null);
         var signals = _strategy.GenerateSignals(ctx);
         _obs.OnSignals(date, signals.Count);
         var regime = RegimeAt(date);
@@ -362,7 +363,7 @@ public sealed class Simulator
         var costs = _cfg.Costs;
         var notional = fill * p.Quantity;
         var commission = notional * (decimal)costs.CommissionRate;
-        var tax = notional * (decimal)costs.SellTaxRate(d);
+        var tax = notional * (decimal)costs.SellTaxRate(d, p.Ticker);
         var slip = (refPrice - fill) * p.Quantity;
         var exitCosts = commission + tax + slip;
         _s.Cash += notional - commission - tax;

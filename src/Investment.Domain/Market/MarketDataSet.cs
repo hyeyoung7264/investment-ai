@@ -19,8 +19,10 @@ public sealed class MarketDataSet
         PointInTimeUniverse universe,
         string source,
         IReadOnlyDictionary<string, CorporateEvent[]>? events = null,
-        IReadOnlyDictionary<string, TickerFundamentals>? fundamentals = null)
+        IReadOnlyDictionary<string, TickerFundamentals>? fundamentals = null,
+        IReadOnlyDictionary<string, Bar[]>? auxIndices = null)
     {
+        AuxIndices = auxIndices;
         Events = events;
         Fundamentals = fundamentals;
         Calendar = calendar;
@@ -59,6 +61,9 @@ public sealed class MarketDataSet
     public PointInTimeUniverse Universe { get; }
     public string Source { get; }
 
+    /// <summary>Extra index series (e.g. VKOSPI) requested by the strategy; null when none.</summary>
+    public IReadOnlyDictionary<string, Bar[]>? AuxIndices { get; }
+
     /// <summary>Fundamentals per ticker (null when the strategy does not use them).</summary>
     public IReadOnlyDictionary<string, TickerFundamentals>? Fundamentals { get; }
 
@@ -88,6 +93,15 @@ public sealed class MarketDataSet
         }
         sb.Append("universe=").Append(Universe.Hash());
         Flush();
+        if (AuxIndices is not null)
+        {
+            foreach (var code in AuxIndices.Keys.Order(StringComparer.Ordinal))
+            {
+                sb.Append("^").Append(code).Append('\n');
+                foreach (var b in AuxIndices[code]) AppendBar(sb, b);
+                Flush();
+            }
+        }
         if (Fundamentals is not null)
         {
             foreach (var ticker in Fundamentals.Keys.Order(StringComparer.Ordinal))

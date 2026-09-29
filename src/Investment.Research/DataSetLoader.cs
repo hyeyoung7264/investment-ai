@@ -16,7 +16,7 @@ public sealed class DataSetLoader(string connectionString)
     public const int WarmupCalendarDays = 450;
 
     public async Task<MarketDataSet> LoadAsync(UniverseDefinition universe, DateOnly start, DateOnly end, string indexCode = "KOSPI",
-        bool includeEvents = false, CancellationToken ct = default, bool includeFundamentals = false)
+        bool includeEvents = false, CancellationToken ct = default, bool includeFundamentals = false, IReadOnlyList<string>? auxIndices = null)
     {
         var store = new MarketDataStore(connectionString);
         var loadFrom = start.AddDays(-WarmupCalendarDays);
@@ -105,8 +105,16 @@ public sealed class DataSetLoader(string connectionString)
                 fundamentals[t] = new TickerFundamentals(quarters[t], [], []);
         }
 
+        Dictionary<string, Bar[]>? aux = null;
+        if (auxIndices is { Count: > 0 })
+        {
+            aux = new Dictionary<string, Bar[]>(StringComparer.Ordinal);
+            foreach (var code in auxIndices.Distinct())
+                aux[code] = (await store.LoadIndexAsync(code, loadFrom, end, ct)).ToArray();
+        }
+
         return new MarketDataSet(calendar, memberBars,
             securities.Where(kv => members.Contains(kv.Key)).ToDictionary(kv => kv.Key, kv => kv.Value),
-            index.ToArray(), indexCode, pit, (krx ? "krx-official+kind" : "naver-chart+kind") + (includeEvents ? "+dart" : "") + (includeFundamentals ? "+fundamentals" : ""), events, fundamentals);
+            index.ToArray(), indexCode, pit, (krx ? "krx-official+kind" : "naver-chart+kind") + (includeEvents ? "+dart" : "") + (includeFundamentals ? "+fundamentals" : "") + (aux is null ? "" : "+aux"), events, fundamentals, aux);
     }
 }

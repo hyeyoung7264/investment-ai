@@ -92,3 +92,14 @@ H20 details (fixed before running): value.ey member = final-fold selection of H1
 
 ### M8 results (2026-09-29)
 H19 HOLD: value.ey top 300 (KRX) **0.041%/day**, EV +7.24%/trade (t=2.01 ≥ 1.96), Sharpe 0.67, MDD 18.5% — only 79 trades < 100 minimum (criterion not changed after the fact) · H20 REJECTED: MDD 41.3%, 0.036%/day (value without trend filter buying through the 2022 bear) · H20b (diagnostic, post-hoc, info only): trend-filtered combination 0.046%/day, MDD 23.2% — no breakthrough.
+
+## M10 — ETF and derivatives-index data (recorded 2026-09-30, before running; Owner away, full delegation)
+
+New information: KRX ETF daily records (2015–, 1.57M rows), KOSPI200, **VKOSPI** (implied volatility). Key cost difference: **domestic equity ETFs pay no securities transaction tax** → cost per round trip drops from ~0.5% to ~0.25% (conservative slippage 0.1% kept).
+Common settings: instrument **KODEX 200 (069500, 1x)**, KRX official prices, one position at up to 100% (a 200-stock basket), stop loss 10%, no leverage/inverse. Benchmark = KOSPI.
+
+| ID | Strategy / conditions | Hypothesis | Origin | Note |
+|---|---|---|---|---|
+| H21 | meanrev.zscore on KODEX 200, grid EntryZ {-1.5, -2.0}, no trend filter, exit SMA5 / 10 days | Index short-term oversold reversal; ETF low cost preserves the edge | a-priori (index short-term reversal, Connors) | **Same code as meanrev family → family multiple testing applied (high t threshold)** |
+| H22 | index.volspike (VKOSPI ≥ 1.3× 60-day median → buy, exit when back at median or 20 days) | Mean reversion after fear spikes (forced de-risking) | a-priori (volatility risk premium / fear-spike literature) | new index family, 1 variant |
+| H23 | index.trend (hold KODEX 200 above SMA200) | Keep index return while avoiding deep drawdowns (time-series momentum) | a-priori (Faber 2007) | Few trades → the 100-trade minimum may not be met (criterion unchanged) |

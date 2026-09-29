@@ -252,4 +252,15 @@ public sealed class EngineTests
         Assert.Equal("StopLoss", t.ExitReason);
         Assert.Equal(950m, t.ExitPrice);
     }
+
+    [Fact]
+    public void Tax_free_instruments_pay_no_sell_tax()
+    {
+        var m = new TestMarket(6).Flat("E", 10_000);
+        var s = new ScriptedStrategy(m.Calendar).At(0, "E", SignalAction.Buy).At(2, "E", SignalAction.Sell);
+        var taxed = new BacktestEngine().Run(s, m.Build(), Config(m, new CostModel { CommissionRate = 0, BaseSlippage = 0, ImpactCoefficient = 0 }));
+        var free = new BacktestEngine().Run(s, m.Build(), Config(m, new CostModel { CommissionRate = 0, BaseSlippage = 0, ImpactCoefficient = 0, TaxFreeTickers = ["E"] }));
+        Assert.True(Assert.Single(taxed.Trades).Costs > 0);
+        Assert.Equal(0m, Assert.Single(free.Trades).Costs);
+    }
 }

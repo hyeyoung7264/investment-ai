@@ -19,6 +19,7 @@ public static class ResearchCommands
         MinPrice = o.GetDouble("min-price", 1000),
         Tickers = o.Get("tickers")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
         PriceSource = o.Get("price-source") ?? "naver",
+        Kinds = o.Get("kinds") is { } k ? k.Split(',').Select(x => Enum.Parse<Investment.Domain.Market.SecurityKind>(x, true)).ToList() : [Investment.Domain.Market.SecurityKind.Common],
     };
 
     public static BacktestConfig Config(CliOptions o, DateOnly start, DateOnly end) => new()
@@ -31,6 +32,7 @@ public static class ResearchCommands
             CommissionRate = o.GetDouble("commission", 0.00015),
             BaseSlippage = o.GetDouble("slippage", 0.001),
             ImpactCoefficient = o.GetDouble("impact", 0.1),
+            TaxFreeTickers = o.Get("tax-free")?.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [],
         },
         Risk = new RiskLimits
         {

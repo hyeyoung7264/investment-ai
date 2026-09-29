@@ -13,6 +13,11 @@ public sealed record CostModel
     public double ImpactCoefficient { get; init; } = 0.1;
     public IReadOnlyList<TaxPeriod> SellTax { get; init; } = KoreaSellTax;
 
+    /// <summary>Instruments exempt from the securities transaction tax (domestic equity ETFs).</summary>
+    public IReadOnlyList<string> TaxFreeTickers { get; init; } = [];
+
+    public double SellTaxRate(DateOnly date, string ticker) => TaxFreeTickers.Contains(ticker) ? 0 : SellTaxRate(date);
+
     public static readonly IReadOnlyList<TaxPeriod> KoreaSellTax =
     [
         new(DateOnly.MinValue, 0.0030),

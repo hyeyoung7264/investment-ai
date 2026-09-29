@@ -54,6 +54,8 @@ public sealed class PortfolioStrategy : IStrategy
 
     public bool UsesFundamentals => _members.Any(m => m.Strategy.UsesFundamentals);
 
+    public IReadOnlyList<string> AuxiliaryIndices => _members.SelectMany(m => m.Strategy.AuxiliaryIndices).Distinct().ToList();
+
     public int WarmupBars => _members.Max(m => m.Strategy.WarmupBars);
 
     public bool UsesCorporateEvents => _members.Any(m => m.Strategy.UsesCorporateEvents);

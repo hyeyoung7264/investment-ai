@@ -45,6 +45,14 @@ public static class MarketDataCommands
                 .RunAsync(o.GetDate("from", new DateOnly(2015, 1, 1)), opt.To, ct);
             return 0;
         }
+        if (what is "krx-etf")
+        {
+            var key = Investment.MarketData.Krx.KrxClient.LoadKey()
+                ?? throw new CliUsageException("KRX key missing: set KRX_API_KEY or ~/.config/investment-ai/krx.key");
+            await new Investment.MarketData.Krx.KrxIngestion(() => Database.Create(cs), new MarketDataStore(cs), new Investment.MarketData.Krx.KrxClient(key), Log)
+                .RunEtfAndIndicesAsync(o.GetDate("from", new DateOnly(2015, 1, 1)), opt.To, ct);
+            return 0;
+        }
         if (what is "financials")
         {
             var key = Investment.MarketData.Dart.DartClient.LoadKey()
@@ -66,7 +74,7 @@ public static class MarketDataCommands
             if (run.Status != "ok") Console.Error.WriteLine($"price ingestion finished with status {run.Status}: {run.Notes}");
         }
         if (what is not ("securities" or "indices" or "prices" or "all"))
-            throw new CliUsageException("ingest securities|indices|prices|splits|disclosures|financials|krx|all");
+            throw new CliUsageException("ingest securities|indices|prices|splits|disclosures|financials|krx|krx-etf|all");
         return 0;
     }
 

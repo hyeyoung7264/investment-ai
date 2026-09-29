@@ -79,7 +79,8 @@ public sealed class WalkForwardRunner(BacktestRunner runner, Action<string>? log
 
         var usesEvents = plan.ParameterGrid.Any(p => StrategyCatalog.Create(strategyId, p).UsesCorporateEvents);
         var usesFundamentals = plan.ParameterGrid.Any(p => StrategyCatalog.Create(strategyId, p).UsesFundamentals);
-        var data = await runner.LoadDataAsync(universe, plan.FirstTrainStart, plan.LastDate, ct, usesEvents, usesFundamentals);
+        var aux = plan.ParameterGrid.SelectMany(p => StrategyCatalog.Create(strategyId, p).AuxiliaryIndices).Distinct().ToList();
+        var data = await runner.LoadDataAsync(universe, plan.FirstTrainStart, plan.LastDate, ct, usesEvents, usesFundamentals, aux);
         var folds = new List<FoldOutcome>();
         Guid? lastSelectedVersion = null;
         foreach (var f in plan.Folds())

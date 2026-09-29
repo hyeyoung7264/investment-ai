@@ -51,6 +51,8 @@ public sealed class RegimeFilterStrategy : IStrategy
 
     public bool UsesFundamentals => _inner.UsesFundamentals;
 
+    public IReadOnlyList<string> AuxiliaryIndices => _inner.AuxiliaryIndices;
+
     public int WarmupBars => _inner.WarmupBars;
 
     public bool UsesCorporateEvents => _inner.UsesCorporateEvents;

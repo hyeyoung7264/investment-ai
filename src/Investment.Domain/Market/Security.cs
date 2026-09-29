@@ -15,6 +15,7 @@ public enum SecurityKind
     Spac = 2,
     Reit = 3,
     Fund = 4,
+    Etf = 5,
     Other = 9,
 }
 

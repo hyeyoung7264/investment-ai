@@ -49,6 +49,9 @@ public interface IStrategy
 
     /// <summary>True if the strategy reads <see cref="StrategyContext.Fundamentals"/> (financials + market cap loaded and hashed).</summary>
     bool UsesFundamentals => false;
+
+    /// <summary>Extra index series the strategy reads via <see cref="StrategyContext.Auxiliary"/> (e.g. "VKOSPI").</summary>
+    IReadOnlyList<string> AuxiliaryIndices => [];
 }
 
 /// <summary>A held position as the strategy sees it. EntryReason carries the buy signal's reason (used for ownership tags).</summary>
@@ -65,8 +68,10 @@ public sealed class StrategyContext(
     BarSeries? marketIndex,
     IReadOnlyDictionary<string, HeldPosition> positions,
     Func<string, IReadOnlyList<CorporateEvent>>? events = null,
-    Func<string, TickerFundamentals?>? fundamentals = null)
+    Func<string, TickerFundamentals?>? fundamentals = null,
+    Func<string, Bar[]?>? auxiliary = null)
 {
+    private readonly Func<string, Bar[]?>? _auxiliary = auxiliary;
     private readonly Func<string, IReadOnlyList<CorporateEvent>>? _events = events;
     private readonly Func<string, TickerFundamentals?>? _fundamentals = fundamentals;
 
@@ -116,11 +121,20 @@ public sealed class StrategyContext(
         return new FundamentalSnapshot(ttmOi, ttmRev, cap, known.Count);
     }
 
+    /// <summary>An extra index series (e.g. VKOSPI), visible only up to <see cref="AsOf"/>; null if not loaded.</summary>
+    public BarSeries? Auxiliary(string code)
+    {
+        if (_auxiliary?.Invoke(code) is not { } bars) return null;
+        int lo = 0, hi = bars.Length;
+        while (lo < hi) { var mid = (lo + hi) >>> 1; if (bars[mid].Date <= AsOf) lo = mid + 1; else hi = mid; }
+        return new BarSeries(code, bars, lo);
+    }
+
     /// <summary>A copy with a narrower universe (composites can restrict members).</summary>
     public StrategyContext WithUniverse(IReadOnlyList<string> universe) =>
-        new(AsOf, universe, history, MarketIndex, Positions, _events, _fundamentals);
+        new(AsOf, universe, history, MarketIndex, Positions, _events, _fundamentals, _auxiliary);
 
     /// <summary>A copy with different positions (composites give each member only its own positions).</summary>
     public StrategyContext WithPositions(IReadOnlyDictionary<string, HeldPosition> positions) =>
-        new(AsOf, Universe, history, MarketIndex, positions, _events, _fundamentals);
+        new(AsOf, Universe, history, MarketIndex, positions, _events, _fundamentals, _auxiliary);
 }

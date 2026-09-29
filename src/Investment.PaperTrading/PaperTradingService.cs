@@ -45,6 +45,7 @@ public sealed class RegimeGuardStrategy(IStrategy inner, IReadOnlySet<string> bl
     public int WarmupBars => inner.WarmupBars;
     public bool UsesCorporateEvents => inner.UsesCorporateEvents;
     public bool UsesFundamentals => inner.UsesFundamentals;
+    public IReadOnlyList<string> AuxiliaryIndices => inner.AuxiliaryIndices;
     public int SuppressedBuys { get; private set; }
 
     public IReadOnlyList<Signal> GenerateSignals(StrategyContext context)
@@ -257,7 +258,7 @@ public sealed class PaperTradingService(string connectionString, Action<string>?
         if (lastData < session.StartDate || state.LastProcessed == lastData)
             return new PaperDailyResult(session.Id, session.Name, 0, null, null, 0, 0, state.PrevNetEquity, null, false, null);
 
-        var data = await new DataSetLoader(connectionString).LoadAsync(universe, session.StartDate, lastData, includeEvents: guard.UsesCorporateEvents, ct: ct, includeFundamentals: guard.UsesFundamentals);
+        var data = await new DataSetLoader(connectionString).LoadAsync(universe, session.StartDate, lastData, includeEvents: guard.UsesCorporateEvents, ct: ct, includeFundamentals: guard.UsesFundamentals, auxIndices: guard.AuxiliaryIndices);
         var recorder = new Recorder(session, null);
         // orders decided in earlier daily runs: their signal prices belong to trades that close in this run
         await using (var db = Db())
