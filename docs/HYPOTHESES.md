@@ -113,3 +113,13 @@ Options (5.5MB/day → 16GB total) are excluded as too heavy. Data: front-month 
 | ID | Strategy / conditions | Hypothesis | Origin | Note |
 |---|---|---|---|---|
 | H24 | index.basis: basis z (60 days) ≤ −2 → buy KODEX 200, exit when z ≥ 0 or 10 days | Deep negative basis = excessive hedging/pessimism → contrarian rebound | a-priori (sentiment contrarian) | index family (variants accumulate); few trades expected |
+
+### M11 results (2026-09-30)
+H24 HOLD: 28 trades, EV +0.32%, t=0.39, does not beat the random control.
+
+## M12 — earnings announcement reaction (EAR) drift (recorded 2026-09-30, before running; last research round)
+Fix for H17's failure (late event date): event = **preliminary earnings / earnings-change disclosure (type I)** filing date E. Surprise = the market's own reaction: stock return from close(E−1) to close of the first session after E, **minus KOSPI over the same window** (known at that close) → entry at the next open, hold 20 days. Universe top 300, KRX official.
+
+| ID | Conditions | Hypothesis | Origin | Note |
+|---|---|---|---|---|
+| H25 | event.ear grid: abnormal 2-day reaction ≥ {+5%, +10%} | Prices under-react to earnings news → drift in the direction of the initial reaction | a-priori (EAR/PEAD literature: Chan-Jegadeesh-Lakonishok 1996, Brandt et al. 2008) | event family cumulative (~6 variants) → t ≈ 2.4 |
