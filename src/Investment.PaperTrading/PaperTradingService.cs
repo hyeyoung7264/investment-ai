@@ -306,7 +306,8 @@ public sealed class PaperTradingService(string connectionString, Action<string>?
             {
                 SessionId = session.Id, RunAt = DateTimeOffset.UtcNow, ProcessedFrom = from, ProcessedTo = to, SessionsProcessed = processed,
                 DataHash = data.ComputeHash(), CodeCommit = code.Commit + (code.Dirty ? "+dirty" : ""),
-                Notes = $"regime {regime}{(blocked.Contains(regime ?? "") ? " (entries paused)" : "")}; suppressed buys {guard.SuppressedBuys}" +
+                Notes = (processed > 1 ? $"CATCH-UP {processed} sessions: orders for opens that had already passed were simulated after the fact; " : "") +
+                        $"regime {regime}{(blocked.Contains(regime ?? "") ? " (entries paused)" : "")}; suppressed buys {guard.SuppressedBuys}" +
                         (recorder.Events.Count > 0 ? "; risk: " + string.Join(", ", recorder.Events.Select(e => $"{e.Date:MM-dd} {e.Kind}")) : ""),
             });
             var tracked = await db.PaperSessions.SingleAsync(s => s.Id == session.Id, ct);
@@ -408,6 +409,8 @@ public static class PaperGate
         if (e.RiskHalted) disable.Add("risk engine halted the session");
         if (e.MaxDrawdown > c.MaxDrawdown) disable.Add($"paper MDD {e.MaxDrawdown:P1} > {c.MaxDrawdown:P0}");
         if (e.Trades >= c.CollapseMinTrades && e.NetEvTStat <= c.CollapseTStat) disable.Add($"paper EV collapsed (t={e.NetEvTStat:F2})");
+        // owner's pre-committed stop rule (docs/DECISION-CRITERIA.md): no positive edge after the minimum sample
+        if (e.Trades >= c.MinTrades && e.NetEvPerTrade <= 0) disable.Add($"paper EV {e.NetEvPerTrade:P3} <= 0 after {e.Trades} trades (stop rule)");
         if (disable.Count > 0) return new(GateDecision.Disable, StrategyStatus.Disabled, disable);
 
         var hold = new List<string>();

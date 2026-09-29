@@ -144,7 +144,10 @@ public sealed class PaperTradingTests(PaperDatabaseFixture fx)
             });
             Assert.True(await db.PaperOrders.CountAsync(o => o.SessionId == session.Id && o.Status == "Filled") >= paperTrades.Count);
             Assert.Equal(3, await db.PaperRuns.CountAsync(r => r.SessionId == session.Id && r.SessionsProcessed > 0));
-            Assert.Equal(StrategyStatus.Paper, (await db.StrategyVersions.SingleAsync(v => v.Id == version.Id)).Status);
+            // the pre-committed stop rule decides the status from the paper evidence itself
+            var ev = paperTrades.Average(t => t.ActualReturn);
+            var expectedStatus = paperTrades.Count >= 30 && ev <= 0 ? StrategyStatus.Disabled : StrategyStatus.Paper;
+            Assert.Equal(expectedStatus, (await db.StrategyVersions.SingleAsync(v => v.Id == version.Id)).Status);
         }
     }
 
@@ -159,5 +162,8 @@ public sealed class PaperTradingTests(PaperDatabaseFixture fx)
         Assert.Equal(GateDecision.Disable, PaperGate.Evaluate(StrategyStatus.Paper, ok with { MaxDrawdown = 0.25 }, c).Decision);
         Assert.Equal(GateDecision.Disable, PaperGate.Evaluate(StrategyStatus.Paper, ok with { NetEvTStat = -2.5, Trades = 25 }, c).Decision);
         Assert.Equal(GateDecision.Disable, PaperGate.Evaluate(StrategyStatus.Paper, ok with { RiskHalted = true }, c).Decision);
+        // stop rule: 30+ trades without a positive average
+        Assert.Equal(GateDecision.Disable, PaperGate.Evaluate(StrategyStatus.Paper, ok with { NetEvPerTrade = -0.0001, NetEvTStat = -0.1 }, c).Decision);
+        Assert.Equal(GateDecision.Hold, PaperGate.Evaluate(StrategyStatus.Paper, ok with { Trades = 29, NetEvPerTrade = -0.0001, NetEvTStat = -0.1 }, c).Decision);
     }
 }
